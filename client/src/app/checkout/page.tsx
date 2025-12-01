@@ -241,7 +241,8 @@ export default function CheckoutPage() {
                 {!showNewAddressForm && useSavedAddress && (
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                     <p className="text-sm text-gray-600">
-                      Using selected address. Click "Use a different address" to enter a new one.
+                      Using selected address. Click &quot;Use a different address&quot; to enter a
+                      new one.
                     </p>
                   </div>
                 )}
