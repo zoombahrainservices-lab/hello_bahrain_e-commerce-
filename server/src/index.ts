@@ -20,31 +20,32 @@ const app: Application = express();
 const PORT = process.env.SERVER_PORT || 5000;
 
 // Middleware
-// CORS: allow browser calls from frontend (Vercel, local, etc.)
+// CORS: Explicitly allow Vercel frontend and localhost
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://hello-bahrain-e-commerce-client.vercel.app',
+  'https://hello-bahrain-e-commerce.onrender.com', // Allow same-origin on Render
+];
+
 app.use(
   cors({
-    origin: true, // reflect request origin
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, Postman, curl)
+      if (!origin) return callback(null, true);
+      
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      
+      // Reject other origins
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
   })
 );
-
-// Extra CORS headers to be absolutely sure browsers see them
-app.use((req, res, next) => {
-  const origin = req.headers.origin || '*';
-  res.header('Access-Control-Allow-Origin', origin);
-  res.header('Vary', 'Origin');
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-  );
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Credentials', 'true');
-
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
 // Increase body size limit to 50MB for image uploads (base64 encoding increases size by ~33%)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
