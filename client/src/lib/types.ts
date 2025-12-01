@@ -88,7 +88,11 @@ export interface ShippingAddress {
 
 export interface Order {
   _id: string;
+  // Some admin endpoints may return 'id' instead of '_id'
+  id?: string;
+  // User can be populated as a User object or a string ID; some responses may use 'users'
   user: string | User;
+  users?: User | null;
   items: {
     product: string;
     name: string;
@@ -99,8 +103,11 @@ export interface Order {
   total: number;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   paymentStatus: 'unpaid' | 'paid';
+  // Some API responses may use snake_case variants
+  payment_status?: 'unpaid' | 'paid';
   shippingAddress: ShippingAddress;
   createdAt: string;
   updatedAt: string;
+  created_at?: string;
 }
 

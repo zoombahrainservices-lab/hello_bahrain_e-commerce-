@@ -6,35 +6,37 @@ import { Banner } from '@/lib/types';
 import SingleImageUpload from '@/components/SingleImageUpload';
 import BannerPreview from '@/components/BannerPreview';
 
+const initialFormData = {
+  title: '',
+  subtitle: '',
+  ctaLabel: '',
+  ctaLink: '',
+  image: '',
+  active: true,
+  textAlign: 'left' as 'left' | 'center' | 'right',
+  textVertical: 'middle' as 'top' | 'middle' | 'bottom',
+  buttonAlign: 'left' as 'left' | 'center' | 'right',
+  buttonVertical: 'middle' as 'top' | 'middle' | 'bottom',
+  displayOrder: 0,
+  titleColor: '#ffffff',
+  subtitleColor: '#e5e7eb',
+  buttonBgColor: '#ffffff',
+  buttonTextColor: '#111827',
+  titleSize: 'lg' as 'sm' | 'md' | 'lg',
+  subtitleSize: 'md' as 'sm' | 'md' | 'lg',
+  titleBold: true,
+  titleItalic: false,
+  subtitleBold: false,
+  subtitleItalic: false,
+};
+
 export default function AdminBannersPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
 
-  const [formData, setFormData] = useState({
-    title: '',
-    subtitle: '',
-    ctaLabel: '',
-    ctaLink: '',
-    image: '',
-    active: true,
-    textAlign: 'left' as 'left' | 'center' | 'right',
-    textVertical: 'middle' as 'top' | 'middle' | 'bottom',
-    buttonAlign: 'left' as 'left' | 'center' | 'right',
-    buttonVertical: 'middle' as 'top' | 'middle' | 'bottom',
-    displayOrder: 0,
-    titleColor: '#ffffff',
-    subtitleColor: '#e5e7eb',
-    buttonBgColor: '#ffffff',
-    buttonTextColor: '#111827',
-    titleSize: 'lg' as 'sm' | 'md' | 'lg',
-    subtitleSize: 'md' as 'sm' | 'md' | 'lg',
-    titleBold: true,
-    titleItalic: false,
-    subtitleBold: false,
-    subtitleItalic: false,
-  });
+  const [formData, setFormData] = useState(initialFormData);
 
   useEffect(() => {
     fetchBanners();
@@ -78,29 +80,7 @@ export default function AdminBannersPage() {
       }
 
       // Reset form
-      setFormData({
-        title: '',
-        subtitle: '',
-        ctaLabel: '',
-        ctaLink: '',
-        image: '',
-        active: true,
-        textAlign: 'left',
-        textVertical: 'middle',
-        buttonAlign: 'left',
-        buttonVertical: 'middle',
-        displayOrder: 0,
-        titleColor: '#ffffff',
-        subtitleColor: '#e5e7eb',
-        buttonBgColor: '#ffffff',
-        buttonTextColor: '#111827',
-        titleSize: 'lg',
-        subtitleSize: 'md',
-        titleBold: true,
-        titleItalic: false,
-        subtitleBold: false,
-        subtitleItalic: false,
-      });
+      setFormData(initialFormData);
       setShowForm(false);
       setEditingBanner(null);
       // Refresh banners to show updated orders
@@ -215,19 +195,7 @@ export default function AdminBannersPage() {
           onClick={() => {
             setShowForm(!showForm);
             setEditingBanner(null);
-            setFormData({
-              title: '',
-              subtitle: '',
-              ctaLabel: '',
-              ctaLink: '',
-              image: '',
-              active: true,
-              textAlign: 'left',
-              textVertical: 'middle',
-              buttonAlign: 'left',
-              buttonVertical: 'middle',
-              displayOrder: 0,
-            });
+            setFormData(initialFormData);
           }}
           className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition"
         >

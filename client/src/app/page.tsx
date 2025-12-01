@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Product, Banner } from '@/lib/types';
@@ -16,7 +16,7 @@ const sortOptions = [
   { value: 'rating', label: 'Rating' },
 ];
 
-export default function MerchPage() {
+function MerchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -192,3 +192,16 @@ export default function MerchPage() {
   );
 }
 
+export default function MerchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      }
+    >
+      <MerchPageContent />
+    </Suspense>
+  );
+}
