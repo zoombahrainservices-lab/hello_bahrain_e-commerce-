@@ -7,6 +7,8 @@ import { api } from '@/lib/api';
 import { Product } from '@/lib/types';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { formatPrice } from '@/lib/currency';
 import ProductCard from '@/components/ProductCard';
 
 export default function ProductDetailPage() {
@@ -14,6 +16,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const { addItem } = useCart();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -134,7 +137,7 @@ export default function ProductDetailPage() {
             <span className="ml-2 text-gray-600">({product.rating})</span>
           </div>
 
-          <p className="text-3xl font-bold text-gray-900 mb-6">${product.price.toFixed(2)}</p>
+          <p className="text-3xl font-bold text-gray-900 mb-6">{formatPrice(product.price, language === 'ar' ? 'ar-BH' : 'en-BH')}</p>
 
           <p className="text-gray-700 mb-6">{product.description}</p>
 

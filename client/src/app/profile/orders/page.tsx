@@ -1,12 +1,12 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { Order } from '@/lib/types';
 
-function OrdersPageContent() {
+export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -93,79 +93,120 @@ function OrdersPageContent() {
         </div>
       ) : (
         <div className="space-y-6">
-          {orders.map((order) => {
-            const orderId = order._id || (order as any).id || '';
-            const createdAt = order.createdAt || (order as any).created_at || '';
-            const status = order.status || 'pending';
-            const paymentStatus = order.paymentStatus || (order as any).payment_status || 'unpaid';
-            
-            return (
-              <div key={orderId} className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex flex-wrap items-start justify-between mb-4 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Order ID</p>
-                    <p className="font-mono text-sm">{orderId.slice(-8).toUpperCase()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Date</p>
-                    <p className="font-medium">
-                      {createdAt ? new Date(createdAt).toLocaleDateString() : 'N/A'}
+          {orders.map((order) => (
+            <div key={order._id} className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex flex-wrap items-start justify-between mb-4 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Order ID</p>
+                  <p className="font-mono text-sm">{order._id}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Date</p>
+                  <p className="font-medium">
+                    {new Date(order.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Total</p>
+                  <p className="font-bold text-lg">${order.total.toFixed(2)}</p>
+                </div>
+                <div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                      order.status
+                    )}`}
+                  >
+                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-3">Items</h3>
+                <div className="space-y-2">
+                  {order.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span>
+                        {item.name} x {item.quantity}
+                      </span>
+                      <span className="font-medium">
+                        ${(item.price * item.quantity).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t mt-4 pt-4">
+                <h3 className="font-semibold mb-2">Shipping Address</h3>
+                <p className="text-sm text-gray-700">
+                  {order.shippingAddress.fullName}
+                  <br />
+                  {order.shippingAddress.addressLine1}
+                  {order.shippingAddress.addressLine2 && (
+                    <>
+                      <br />
+                      {order.shippingAddress.addressLine2}
+                    </>
+                  )}
+                  <br />
+                  {order.shippingAddress.city}, {order.shippingAddress.postalCode}
+                  <br />
+                  {order.shippingAddress.country}
+                  <br />
+                  Phone: {order.shippingAddress.phone}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+                      {order.shippingAddress.fullName}
+                      <br />
+                      {order.shippingAddress.addressLine1}
+                      {order.shippingAddress.addressLine2 && (
+                        <>
+                          <br />
+                          {order.shippingAddress.addressLine2}
+                        </>
+                      )}
+                      <br />
+                      {order.shippingAddress.city}, {order.shippingAddress.postalCode}
+                      <br />
+                      {order.shippingAddress.country}
+                      <br />
+                      Phone: {order.shippingAddress.phone}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Total</p>
-                    <p className="font-bold text-lg">${order.total?.toFixed(2) || '0.00'}</p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Status</p>
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                          status
-                        )}`}
-                      >
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Payment</p>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          paymentStatus === 'paid'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
-                <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-3">Items ({order.items?.length || 0})</h3>
-                  {order.items && order.items.length > 0 ? (
-                    <div className="space-y-2">
-                      {order.items.map((item: any, idx: number) => (
-                        <div key={idx} className="flex justify-between text-sm">
-                          <span>
-                            {item.name} x {item.quantity}
-                          </span>
-                          <span className="font-medium">
-                            ${((item.price || 0) * (item.quantity || 0)).toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">No items found</p>
-                  )}
-                </div>
+export default function OrdersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      }
+    >
+      <OrdersPageContent />
+    </Suspense>
+  );
+}
 
-                {order.shippingAddress && (
-                  <div className="border-t mt-4 pt-4">
-                    <h3 className="font-semibold mb-2">Shipping Address</h3>
-                    <p className="text-sm text-gray-700">
                       {order.shippingAddress.fullName}
                       <br />
                       {order.shippingAddress.addressLine1}

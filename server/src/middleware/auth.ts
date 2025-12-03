@@ -7,17 +7,29 @@ export const authMiddleware: RequestHandler = (
   next: NextFunction
 ): void => {
   try {
-    // Try to get token from cookie first, then from Authorization header
-    let token = (req as any).cookies?.token;
+    // Try to get token from Authorization header first (more reliable for localhost), then from cookie
+    let token = null;
+    let tokenSource = 'none';
 
-    if (!token) {
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      }
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+      tokenSource = 'authorization-header';
+    } else if ((req as any).cookies?.token) {
+      token = (req as any).cookies.token;
+      tokenSource = 'cookie';
     }
 
+    console.log(`🔐 Auth check: ${req.method} ${req.path}`, {
+      tokenSource,
+      hasAuthHeader: !!authHeader,
+      hasCookie: !!(req as any).cookies?.token,
+      tokenLength: token?.length || 0,
+      cookies: Object.keys((req as any).cookies || {}),
+    });
+
     if (!token) {
+      console.log('❌ No token found in Authorization header or cookies');
       res.status(401).json({ message: 'Authentication required' });
       return;
     }
@@ -28,9 +40,11 @@ export const authMiddleware: RequestHandler = (
       role: 'user' | 'admin';
     };
 
+    console.log(`✅ Token valid for user: ${decoded.id} (${decoded.role})`);
     req.user = decoded;
     next();
-  } catch (error) {
+  } catch (error: any) {
+    console.log('❌ Token verification failed:', error.message);
     res.status(401).json({ message: 'Invalid or expired token' });
   }
 };

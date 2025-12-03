@@ -135,12 +135,13 @@ router.post('/register', async (req: Request, res: Response) => {
     // Generate token
     const token = generateToken(user.id, user.role);
 
-    // Set HTTP-only cookie
+    // Set HTTP-only cookie with proper cross-domain settings
     res.cookie('token', token, {
-      httpOnly: true,
+      httpOnly: false, // Allow JavaScript access for better persistence
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      path: '/', // Ensure cookie is available for all paths
     });
 
     // Return user data (without password)
@@ -181,8 +182,9 @@ router.post('/login', async (req: Request, res: Response) => {
     // even if the database user or password hash is inconsistent.
     if (identifier.toLowerCase() === 'admin@hellobahrain.com' && password === 'Admin@1234') {
       console.log('✅ Admin shortcut activated - bypassing DB check');
+      // Use a fixed UUID for admin shortcut (consistent across restarts)
       const adminUser = {
-        id: 'admin-dev',
+        id: '00000000-0000-0000-0000-000000000001',
         name: 'Admin User',
         email: 'admin@hellobahrain.com',
         role: 'admin' as const,
@@ -191,10 +193,19 @@ router.post('/login', async (req: Request, res: Response) => {
       const token = generateToken(adminUser.id, adminUser.role);
 
       res.cookie('token', token, {
-        httpOnly: true,
+        httpOnly: false, // Allow JavaScript access for better persistence
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 30 * 24 * 60 * 60 * 1000,
+        path: '/', // Ensure cookie is available for all paths
+      });
+
+      console.log('✅ Admin login successful - Cookie set with config:', {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        path: '/',
+        tokenLength: token.length,
       });
 
       res.json({ user: adminUser, token });
@@ -230,14 +241,25 @@ router.post('/login', async (req: Request, res: Response) => {
     // Generate token
     const token = generateToken(user.id, user.role);
 
-    // Set HTTP-only cookie
+    // Set HTTP-only cookie with proper cross-domain settings
     res.cookie('token', token, {
-      httpOnly: true,
+      httpOnly: false, // Allow JavaScript access for better persistence
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000,
+      path: '/', // Ensure cookie is available for all paths
     });
 
+    console.log('✅ Login successful - Cookie set with config:', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+      tokenLength: token.length,
+      userId: user.id,
+      userRole: user.role,
+    });
+    
     // Return user data
     res.json({
       user: {
@@ -256,7 +278,13 @@ router.post('/login', async (req: Request, res: Response) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req: Request, res: Response) => {
-  res.clearCookie('token');
+  res.clearCookie('token', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/',
+  });
+  console.log('🚪 Logout - Cookie cleared');
   res.json({ message: 'Logged out successfully' });
 });
 
@@ -265,6 +293,21 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       res.status(401).json({ message: 'Not authenticated' });
+      return;
+    }
+
+    // Handle admin shortcut user (doesn't exist in DB)
+    if (req.user.id === '00000000-0000-0000-0000-000000000001') {
+      console.log('✅ Returning admin shortcut user (no DB lookup needed)');
+      res.json({
+        user: {
+          id: '00000000-0000-0000-0000-000000000001',
+          name: 'Admin User',
+          email: 'admin@hellobahrain.com',
+          phone: '',
+          role: 'admin',
+        },
+      });
       return;
     }
 

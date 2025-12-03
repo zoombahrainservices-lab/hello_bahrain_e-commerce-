@@ -14,15 +14,26 @@ export const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+      // Check both localStorage and cookie
+      const localStorageToken = localStorage.getItem('token');
+      const cookieMatch = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
+      const cookieToken = cookieMatch ? cookieMatch[1] : null;
+      
+      console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`, {
         baseURL: config.baseURL,
         origin: window.location.origin,
+        hasLocalStorageToken: !!localStorageToken,
+        hasCookieToken: !!cookieToken,
+        tokensMatch: localStorageToken === cookieToken,
+        tokenLength: localStorageToken?.length || 0,
       });
       
       // Add token from localStorage if available
-      const token = localStorage.getItem('token');
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
+      if (localStorageToken && config.headers) {
+        config.headers.Authorization = `Bearer ${localStorageToken}`;
+        console.log('✅ Added Authorization header to request');
+      } else {
+        console.log('⚠️ No token found - request will be unauthenticated');
       }
     }
     return config;

@@ -93,13 +93,6 @@ export default function Header() {
                       <p className="text-xs text-gray-500">{user.email}</p>
                     </div>
                     <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setShowDropdown(false)}
-                    >
-                      My Profile
-                    </Link>
-                    <Link
                       href="/profile/orders"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setShowDropdown(false)}

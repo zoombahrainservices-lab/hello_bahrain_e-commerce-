@@ -17,33 +17,18 @@ import profileRoutes from './routes/profile';
 dotenv.config();
 
 const app: Application = express();
-const PORT = process.env.SERVER_PORT || 5000;
+// Prefer the platform-provided PORT (e.g. Render) and fall back to SERVER_PORT/local 5000
+const PORT = Number(process.env.PORT) || Number(process.env.SERVER_PORT) || 5000;
 
 // Middleware
-// CORS: Explicitly allow Vercel frontend and localhost
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://hello-bahrain-e-commerce-client.vercel.app',
-  'https://hello-bahrain-e-commerce.onrender.com', // Allow same-origin on Render
-];
-
+// CORS: for this project, allow all browser origins (includes all Vercel previews and production)
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, Postman, curl)
-      if (!origin) return callback(null, true);
-      
-      // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      
-      // Reject other origins
-      return callback(new Error('Not allowed by CORS'));
-    },
+    origin: true, // Reflect the request Origin header
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
   })
 );
 // Increase body size limit to 50MB for image uploads (base64 encoding increases size by ~33%)
@@ -52,9 +37,23 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 app.use(passport.initialize());
 
-// Health check
+// Health check (works even if DB connection fails)
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
+  res.json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    cors: 'enabled'
+  });
+});
+
+// CORS test endpoint
+app.get('/api/cors-test', (req, res) => {
+  res.json({ 
+    message: 'CORS is working!',
+    origin: req.headers.origin || 'no origin',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // API Routes
@@ -81,6 +80,11 @@ app.use((req, res) => {
 // Start server
 const startServer = async () => {
   try {
+    console.log('🔌 Attempting to connect to Supabase...');
+    console.log(`📋 SUPABASE_URL: ${process.env.SUPABASE_URL ? '✅ Set' : '❌ Missing'}`);
+    console.log(`📋 SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? '✅ Set' : '❌ Missing'}`);
+    console.log(`📋 SUPABASE_ANON_KEY: ${process.env.SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}`);
+    
     // Connect to Supabase
     await connectDB();
 
@@ -89,9 +93,11 @@ const startServer = async () => {
       console.log(`🚀 Server is running on port ${PORT}`);
       console.log(`📍 Health check: http://localhost:${PORT}/health`);
       console.log(`🌍 Client URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
+      console.log(`🔒 CORS enabled for: localhost:3000, *.vercel.app, and hello-bahrain-e-commerce.onrender.com`);
     });
-  } catch (error) {
-    console.error('Failed to start server:', error);
+  } catch (error: any) {
+    console.error('❌ Failed to start server:', error.message);
+    console.error('💡 Make sure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) are set in your environment variables');
     process.exit(1);
   }
 };

@@ -20,43 +20,96 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchMe = async () => {
-    try {
-      const response = await api.get('/api/auth/me');
-      setUser(response.data.user);
-    } catch (error) {
+    console.log('🔄 fetchMe called - checking authentication...');
+    
+    // Check localStorage first
+    let token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    console.log('📦 Token in localStorage:', token ? 'EXISTS (length: ' + token.length + ')' : 'MISSING');
+    
+    // If not in localStorage, check cookie as backup
+    if (!token && typeof window !== 'undefined') {
+      const cookieMatch = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
+      token = cookieMatch ? cookieMatch[1] : null;
+      console.log('🍪 Token in cookie:', token ? 'EXISTS (length: ' + token.length + ')' : 'MISSING');
+      
+      // If found in cookie but not in localStorage, sync them
+      if (token) {
+        localStorage.setItem('token', token);
+        console.log('🔄 Synced token from cookie to localStorage');
+      }
+    }
+    
+    if (!token) {
+      console.log('❌ No token found in localStorage or cookie - user not authenticated');
       setUser(null);
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      console.log('🌐 Making request to /api/auth/me...');
+      const response = await api.get('/api/auth/me');
+      console.log('✅ fetchMe SUCCESS - User:', response.data.user);
+      setUser(response.data.user);
+    } catch (error: any) {
+      console.log('❌ fetchMe FAILED:', {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        error: error
+      });
+      setUser(null);
+      // Clear invalid token
+      localStorage.removeItem('token');
+      document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log('🚀 AuthProvider mounted - running initial fetchMe()');
     fetchMe();
   }, []);
 
   const login = async (identifier: string, password: string) => {
+    console.log('🔐 Login attempt for:', identifier);
     const response = await api.post('/api/auth/login', { identifier, password });
+    console.log('✅ Login response:', response.data);
     setUser(response.data.user);
-    // Store token in localStorage for cross-domain auth
+    // Store token in localStorage AND cookie for maximum persistence
     if (response.data.token) {
+      console.log('💾 Storing token in localStorage (length:', response.data.token.length, ')');
       localStorage.setItem('token', response.data.token);
+      
+      // Also store in a client-side cookie as backup
+      document.cookie = `token=${response.data.token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+      
+      console.log('✅ Token stored! Verification:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
+    } else {
+      console.warn('⚠️ No token in login response!');
     }
   };
 
   const register = async (name: string, email: string, password: string, phone: string) => {
     const response = await api.post('/api/auth/register', { name, email, password, phone });
     setUser(response.data.user);
-    // Store token in localStorage for cross-domain auth
+    // Store token in localStorage AND cookie for maximum persistence
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
+      
+      // Also store in a client-side cookie as backup
+      document.cookie = `token=${response.data.token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
     }
   };
 
   const logout = async () => {
+    console.log('🚪 Logout called');
     await api.post('/api/auth/logout');
     setUser(null);
-    // Clear token from localStorage
+    // Clear token from both localStorage and cookie
     localStorage.removeItem('token');
+    document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
+    console.log('✅ Logout complete - token removed from localStorage and cookie');
   };
 
   return (

@@ -2,6 +2,8 @@
 
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { formatPrice } from '@/lib/currency';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -9,6 +11,7 @@ import { useRouter } from 'next/navigation';
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotal, clearCart } = useCart();
   const { user, loading: authLoading } = useAuth();
+  const { t, language } = useLanguage();
   const router = useRouter();
 
   if (authLoading) {
@@ -81,7 +84,7 @@ export default function CartPage() {
                       {item.name}
                     </h3>
                   </Link>
-                  <p className="text-gray-600">${item.price.toFixed(2)}</p>
+                  <p className="text-gray-600">{formatPrice(item.price, language === 'ar' ? 'ar-BH' : 'en-BH')}</p>
                 </div>
 
                 <div className="flex items-center border border-gray-300 rounded-lg">
@@ -101,7 +104,7 @@ export default function CartPage() {
                 </div>
 
                 <p className="font-semibold w-24 text-right">
-                  ${(item.price * item.quantity).toFixed(2)}
+                  {formatPrice(item.price * item.quantity, language === 'ar' ? 'ar-BH' : 'en-BH')}
                 </p>
 
                 <button
@@ -136,19 +139,19 @@ export default function CartPage() {
 
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="font-semibold">${getTotal().toFixed(2)}</span>
+                <span className="text-gray-600">{t('subtotal')}</span>
+                <span className="font-semibold">{formatPrice(getTotal(), language === 'ar' ? 'ar-BH' : 'en-BH')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Shipping</span>
-                <span className="font-semibold">Calculated at checkout</span>
+                <span className="text-gray-600">{language === 'ar' ? 'الشحن' : 'Shipping'}</span>
+                <span className="font-semibold">{language === 'ar' ? 'يحسب عند الدفع' : 'Calculated at checkout'}</span>
               </div>
             </div>
 
             <div className="border-t pt-4 mb-6">
               <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
-                <span>${getTotal().toFixed(2)}</span>
+                <span>{language === 'ar' ? 'المجموع' : 'Total'}</span>
+                <span>{formatPrice(getTotal(), language === 'ar' ? 'ar-BH' : 'en-BH')}</span>
               </div>
             </div>
 

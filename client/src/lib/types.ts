@@ -2,23 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  phone?: string;
   role: 'user' | 'admin';
-}
-
-export interface UserAddress {
-  id: string;
-  label: string;
-  fullName: string;
-  addressLine1: string;
-  addressLine2?: string;
-  city: string;
-  country: string;
-  postalCode: string;
-  phone: string;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Product {
@@ -41,26 +25,27 @@ export interface Product {
 }
 
 export interface Banner {
+  // IDs can come back as either id or _id depending on route
   _id: string;
+  id?: string;
   title: string;
   subtitle: string;
   ctaLabel: string;
   ctaLink: string;
   image: string;
   active: boolean;
+  // Optional styling + alignment (used by admin + homepage)
   textAlign?: 'left' | 'center' | 'right';
   textVertical?: 'top' | 'middle' | 'bottom';
   buttonAlign?: 'left' | 'center' | 'right';
   buttonVertical?: 'top' | 'middle' | 'bottom';
   displayOrder?: number;
-  // Styling options stored inside cta_link JSON on the backend
   titleColor?: string;
   subtitleColor?: string;
   buttonBgColor?: string;
   buttonTextColor?: string;
   titleSize?: 'sm' | 'md' | 'lg';
   subtitleSize?: 'sm' | 'md' | 'lg';
-   // Font style options
   titleBold?: boolean;
   titleItalic?: boolean;
   subtitleBold?: boolean;
@@ -72,6 +57,79 @@ export interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  image: string;
+  slug: string;
+}
+
+export interface ShippingAddress {
+  fullName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  country: string;
+  postalCode: string;
+  phone: string;
+}
+
+export interface Order {
+  _id: string;
+  user: string | User;
+  items: {
+    product: string;
+    name: string;
+    price: number;
+    quantity: number;
+    image: string;
+  }[];
+  total: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  paymentStatus: 'unpaid' | 'paid';
+  shippingAddress: ShippingAddress;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+  image: string;
+  slug: string;
+}
+
+export interface ShippingAddress {
+  fullName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  country: string;
+  postalCode: string;
+  phone: string;
+}
+
+export interface Order {
+  _id: string;
+  // Some admin endpoints may return 'id' instead of '_id'
+  id?: string;
+  // User can be populated as a User object or a string ID; some responses may use 'users'
+  user: string | User;
+  users?: User | null;
+  items: {
+    product: string;
+    name: string;
+    price: number;
+    quantity: number;
+    image: string;
+  }[];
+  total: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  paymentStatus: 'unpaid' | 'paid';
+  // Some API responses may use snake_case variants
+  payment_status?: 'unpaid' | 'paid';
+  shippingAddress: ShippingAddress;
+  createdAt: string;
+  updatedAt: string;
+  created_at?: string;
+}
+
+
   image: string;
   slug: string;
 }

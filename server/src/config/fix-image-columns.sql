@@ -17,3 +17,5 @@ ALTER TABLE order_items
 ALTER TABLE banners 
   ALTER COLUMN cta_link TYPE TEXT;
 
+
+

@@ -23,6 +23,7 @@ function MerchPageContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -48,15 +49,20 @@ function MerchPageContent() {
       } else {
         setBanners([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching banners:', error);
       setBanners([]);
+      // Don't set error for banners - it's not critical
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('CORS')) {
+        console.warn('CORS or network error when fetching banners');
+      }
     }
   };
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      setError(null);
       const params: any = {
         page,
         limit: 12,
@@ -72,11 +78,23 @@ function MerchPageContent() {
       }
 
       const response = await api.get('/api/products', { params });
-      setProducts(response.data.items);
-      setTotal(response.data.total);
-      setTotalPages(response.data.totalPages);
-    } catch (error) {
+      setProducts(response.data.items || []);
+      setTotal(response.data.total || 0);
+      setTotalPages(response.data.totalPages || 1);
+    } catch (error: any) {
       console.error('Error fetching products:', error);
+      setProducts([]);
+      
+      // Set user-friendly error message
+      if (error.code === 'ERR_NETWORK') {
+        setError('Network error: Unable to connect to the server. Please check your internet connection.');
+      } else if (error.message?.includes('CORS') || error.response?.status === 0) {
+        setError('CORS error: The server is not allowing requests from this origin. Please contact support.');
+      } else if (error.response?.status === 404) {
+        setError('API endpoint not found. The server may be updating.');
+      } else {
+        setError(`Failed to load products: ${error.message || 'Unknown error'}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -150,6 +168,22 @@ function MerchPageContent() {
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-16">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+              <h3 className="text-red-800 font-semibold mb-2">Error Loading Products</h3>
+              <p className="text-red-600 text-sm mb-4">{error}</p>
+              <button
+                onClick={() => {
+                  setError(null);
+                  fetchProducts();
+                }}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         ) : products.length > 0 ? (
           <>

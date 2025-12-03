@@ -1,12 +1,16 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/lib/types';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { formatPrice } from '@/lib/currency';
 
 interface ProductCardProps {
   product: Product;
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const { t, language } = useLanguage();
+  
   return (
     <Link href={`/product/${product.slug}`}>
       <div className="group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
@@ -20,18 +24,18 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
           {product.isNew && (
             <span className="absolute top-2 left-2 bg-primary-600 text-white text-xs px-2 py-1 rounded">
-              New
+              {language === 'ar' ? 'جديد' : 'New'}
             </span>
           )}
           {product.isFeatured && (
             <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-              Hot
+              {language === 'ar' ? 'مميز' : 'Hot'}
             </span>
           )}
           {!product.inStock && (
             <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
               <span className="bg-white text-gray-900 px-4 py-2 rounded font-semibold">
-                Out of Stock
+                {t('outOfStock')}
               </span>
             </div>
           )}
@@ -69,10 +73,10 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           <div className="flex items-center justify-between">
             <p className="text-xl font-bold text-gray-900">
-              ${product.price.toFixed(2)}
+              {formatPrice(product.price, language === 'ar' ? 'ar-BH' : 'en-BH')}
             </p>
             {product.inStock && (
-              <span className="text-xs text-green-600 font-medium">In Stock</span>
+              <span className="text-xs text-green-600 font-medium">{t('inStock')}</span>
             )}
           </div>
         </div>

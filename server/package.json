@@ -15,7 +15,9 @@
     "apply-schema-updates": "ts-node src/apply-schema-updates.ts",
     "apply-banner-schema-updates": "ts-node src/apply-banner-schema-updates.ts",
     "check-banner-columns": "ts-node src/check-banner-columns.ts",
-    "fix-banner-alignment": "ts-node --project tsconfig.dev.json src/fix-banner-alignment.ts"
+    "fix-banner-alignment": "ts-node --project tsconfig.dev.json src/fix-banner-alignment.ts",
+    "update-passwords": "ts-node src/update-passwords.ts",
+    "fix-admin-user": "ts-node src/fix-admin-user.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
