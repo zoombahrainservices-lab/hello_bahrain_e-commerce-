@@ -157,32 +157,53 @@ export default function ProductDetailPage() {
 
           {/* Stock Status */}
           <div className="mb-6">
-            {product.inStock ? (
-              <p className="text-green-600 font-medium">
-                In Stock ({product.stockQuantity} available)
-              </p>
+            {product.inStock && product.stockQuantity > 0 ? (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <p className="text-green-600 font-semibold">
+                  In Stock
+                  {product.stockQuantity <= 5 && product.stockQuantity > 0 && (
+                    <span className="text-orange-600 ml-2">
+                      (Only {product.stockQuantity} left!)
+                    </span>
+                  )}
+                  {product.stockQuantity > 5 && (
+                    <span className="text-gray-600 ml-2 font-normal">
+                      ({product.stockQuantity} available)
+                    </span>
+                  )}
+                </p>
+              </div>
             ) : (
-              <p className="text-red-600 font-medium">Out of Stock</p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-red-600 font-bold text-lg">Out of Stock</p>
+                </div>
+                <p className="text-sm text-red-700">This product is currently unavailable.</p>
+              </div>
             )}
           </div>
 
-          {/* Quantity and Add to Cart */}
-          {product.inStock && (
+          {/* Quantity and Add to Cart - ONLY show if in stock and quantity > 0 */}
+          {product.inStock && product.stockQuantity > 0 ? (
             <div className="mb-6">
               <div className="flex items-center space-x-4 mb-3">
                 <div className="flex items-center border border-gray-300 rounded-lg">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-4 py-2 hover:bg-gray-100"
+                    className="px-4 py-2 hover:bg-gray-100 transition"
                   >
                     -
                   </button>
-                  <span className="px-6 py-2 border-x">{quantity}</span>
+                  <span className="px-6 py-2 border-x font-semibold">{quantity}</span>
                   <button
                     onClick={() =>
                       setQuantity(Math.min(product.stockQuantity, quantity + 1))
                     }
-                    className="px-4 py-2 hover:bg-gray-100"
+                    className="px-4 py-2 hover:bg-gray-100 transition"
                   >
                     +
                   </button>
@@ -190,27 +211,45 @@ export default function ProductDetailPage() {
 
                 <button
                   onClick={handleAddToCart}
-                  className="flex-1 bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition"
+                  disabled={!user}
+                  className="flex-1 bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {addedToCart ? 'Added to Cart!' : 'Add to Cart'}
+                  {addedToCart ? '✓ Added to Cart!' : 'Add to Cart'}
                 </button>
               </div>
 
+              {!user && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(`/auth/login?redirect=/product/${product.slug}`)
+                      }
+                      className="underline font-semibold hover:text-yellow-900"
+                    >
+                      Log in
+                    </button>
+                    {' '}to add items to your cart
+                  </p>
+                </div>
+              )}
+
               {authMessage && (
                 <p className="text-sm text-red-600">
-                  {authMessage}{' '}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push(`/auth/login?redirect=/product/${product.slug}`)
-                    }
-                    className="underline font-medium"
-                  >
-                    Login now
-                  </button>
+                  {authMessage}
                 </p>
               )}
             </div>
+          ) : (
+            !product.inStock || product.stockQuantity === 0 ? (
+              <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
+                <p className="text-gray-700 font-medium mb-2">Want to be notified when this is back?</p>
+                <button className="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition">
+                  Notify Me When Available
+                </button>
+              </div>
+            ) : null
           )}
         </div>
       </div>

@@ -11,33 +11,41 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const { t, language } = useLanguage();
   
+  // Check if product is actually available (in stock AND has quantity > 0)
+  const isAvailable = product.inStock && product.stockQuantity > 0;
+  
   return (
     <Link href={`/product/${product.slug}`}>
-      <div className="group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
+      <div className={`group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 ${!isAvailable ? 'opacity-75' : ''}`}>
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           <Image
             src={product.image}
             alt={product.name}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className={`object-cover transition-transform duration-300 ${isAvailable ? 'group-hover:scale-105' : 'grayscale'}`}
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
           />
-          {product.isNew && (
+          {product.isNew && isAvailable && (
             <span className="absolute top-2 left-2 bg-primary-600 text-white text-xs px-2 py-1 rounded">
               {language === 'ar' ? 'جديد' : 'New'}
             </span>
           )}
-          {product.isFeatured && (
+          {product.isFeatured && isAvailable && (
             <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
               {language === 'ar' ? 'مميز' : 'Hot'}
             </span>
           )}
-          {!product.inStock && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-              <span className="bg-white text-gray-900 px-4 py-2 rounded font-semibold">
+          {!isAvailable && (
+            <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+              <span className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm">
                 {t('outOfStock')}
               </span>
             </div>
+          )}
+          {isAvailable && product.stockQuantity <= 5 && (
+            <span className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-1 rounded">
+              Only {product.stockQuantity} left
+            </span>
           )}
         </div>
 
@@ -75,8 +83,14 @@ export default function ProductCard({ product }: ProductCardProps) {
             <p className="text-xl font-bold text-gray-900">
               {formatPrice(product.price, language === 'ar' ? 'ar-BH' : 'en-BH')}
             </p>
-            {product.inStock && (
-              <span className="text-xs text-green-600 font-medium">{t('inStock')}</span>
+            {isAvailable ? (
+              product.stockQuantity <= 5 ? (
+                <span className="text-xs text-orange-600 font-bold">Low Stock</span>
+              ) : (
+                <span className="text-xs text-green-600 font-medium">{t('inStock')}</span>
+              )
+            ) : (
+              <span className="text-xs text-red-600 font-bold">{t('outOfStock')}</span>
             )}
           </div>
         </div>

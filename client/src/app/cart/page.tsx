@@ -85,19 +85,29 @@ export default function CartPage() {
                     </h3>
                   </Link>
                   <p className="text-gray-600">{formatPrice(item.price, language === 'ar' ? 'ar-BH' : 'en-BH')}</p>
+                  {item.stockQuantity && item.quantity >= item.stockQuantity && (
+                    <p className="text-xs text-orange-600 mt-1 font-semibold">⚠ Max stock reached</p>
+                  )}
                 </div>
 
                 <div className="flex items-center border border-gray-300 rounded-lg">
                   <button
                     onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                    className="px-3 py-1 hover:bg-gray-100"
+                    className="px-3 py-1 hover:bg-gray-100 transition"
+                    disabled={item.quantity <= 1}
                   >
                     -
                   </button>
-                  <span className="px-4 py-1 border-x">{item.quantity}</span>
+                  <span className="px-4 py-1 border-x font-semibold">{item.quantity}</span>
                   <button
                     onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                    className="px-3 py-1 hover:bg-gray-100"
+                    className="px-3 py-1 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={item.stockQuantity !== undefined && item.quantity >= item.stockQuantity}
+                    title={
+                      item.stockQuantity !== undefined && item.quantity >= item.stockQuantity
+                        ? 'Maximum stock reached'
+                        : undefined
+                    }
                   >
                     +
                   </button>

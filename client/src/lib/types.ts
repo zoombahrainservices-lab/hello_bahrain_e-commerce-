@@ -59,79 +59,8 @@ export interface CartItem {
   quantity: number;
   image: string;
   slug: string;
-}
-
-export interface ShippingAddress {
-  fullName: string;
-  addressLine1: string;
-  addressLine2?: string;
-  city: string;
-  country: string;
-  postalCode: string;
-  phone: string;
-}
-
-export interface Order {
-  _id: string;
-  user: string | User;
-  items: {
-    product: string;
-    name: string;
-    price: number;
-    quantity: number;
-    image: string;
-  }[];
-  total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  paymentStatus: 'unpaid' | 'paid';
-  shippingAddress: ShippingAddress;
-  createdAt: string;
-  updatedAt: string;
-}
-
-
-  image: string;
-  slug: string;
-}
-
-export interface ShippingAddress {
-  fullName: string;
-  addressLine1: string;
-  addressLine2?: string;
-  city: string;
-  country: string;
-  postalCode: string;
-  phone: string;
-}
-
-export interface Order {
-  _id: string;
-  // Some admin endpoints may return 'id' instead of '_id'
-  id?: string;
-  // User can be populated as a User object or a string ID; some responses may use 'users'
-  user: string | User;
-  users?: User | null;
-  items: {
-    product: string;
-    name: string;
-    price: number;
-    quantity: number;
-    image: string;
-  }[];
-  total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  paymentStatus: 'unpaid' | 'paid';
-  // Some API responses may use snake_case variants
-  payment_status?: 'unpaid' | 'paid';
-  shippingAddress: ShippingAddress;
-  createdAt: string;
-  updatedAt: string;
-  created_at?: string;
-}
-
-
-  image: string;
-  slug: string;
+  // Track available stock when item was added to cart
+  stockQuantity?: number;
 }
 
 export interface ShippingAddress {

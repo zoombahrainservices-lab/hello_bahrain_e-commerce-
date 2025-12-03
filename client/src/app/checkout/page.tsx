@@ -43,6 +43,19 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate cart items have stock before submission
+    const stockIssues = items.filter(
+      (item) => item.stockQuantity !== undefined && item.quantity > item.stockQuantity
+    );
+
+    if (stockIssues.length > 0) {
+      setError(
+        `Some items exceed available stock: ${stockIssues.map((i) => i.name).join(', ')}. Please update your cart.`
+      );
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -61,7 +74,13 @@ export default function CheckoutPage() {
       clearCart();
       router.push('/profile/orders?success=true');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create order');
+      const errorMsg = err.response?.data?.message || 'Failed to create order';
+      // Check if error is about stock
+      if (errorMsg.toLowerCase().includes('stock') || errorMsg.toLowerCase().includes('insufficient')) {
+        setError(`${errorMsg}. Please update your cart and try again.`);
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -217,25 +236,38 @@ export default function CheckoutPage() {
             <h2 className="text-xl font-bold mb-4">Order Summary</h2>
 
             <div className="space-y-4 mb-6">
-              {items.map((item) => (
-                <div key={item.productId} className="flex gap-3">
-                  <div className="relative w-16 h-16 flex-shrink-0">
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      fill
-                      className="object-cover rounded"
-                    />
+              {items.map((item) => {
+                const hasStockIssue = item.stockQuantity !== undefined && item.quantity > item.stockQuantity;
+                return (
+                  <div key={item.productId} className={`flex gap-3 ${hasStockIssue ? 'bg-red-50 border border-red-200 rounded p-2' : ''}`}>
+                    <div className="relative w-16 h-16 flex-shrink-0">
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        className="object-cover rounded"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{item.name}</p>
+                      <p className="text-gray-600 text-sm">Qty: {item.quantity}</p>
+                      {hasStockIssue && (
+                        <p className="text-xs text-red-600 font-semibold mt-1">
+                          ⚠ Exceeds available stock
+                        </p>
+                      )}
+                      {item.stockQuantity !== undefined && item.quantity === item.stockQuantity && (
+                        <p className="text-xs text-orange-600 font-medium mt-1">
+                          Max stock
+                        </p>
+                      )}
+                    </div>
+                    <p className="font-semibold text-sm">
+                      {formatPrice(item.price * item.quantity, language === 'ar' ? 'ar-BH' : 'en-BH')}
+                    </p>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{item.name}</p>
-                    <p className="text-gray-600 text-sm">Qty: {item.quantity}</p>
-                  </div>
-                  <p className="font-semibold text-sm">
-                    {formatPrice(item.price * item.quantity, language === 'ar' ? 'ar-BH' : 'en-BH')}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="border-t pt-4 space-y-2">
