@@ -1,56 +1,58 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/lib/types';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { formatPrice } from '@/lib/currency';
+
+// Local price formatter so we don't depend on '@/lib/currency' here
+function formatPriceLocal(amount: number): string {
+  if (Number.isNaN(amount)) return '';
+  try {
+    return new Intl.NumberFormat('en-BH', {
+      style: 'currency',
+      currency: 'BHD',
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} BHD`;
+  }
+}
 
 interface ProductCardProps {
   product: Product;
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const { t, language } = useLanguage();
-  
-  // Check if product is actually available (in stock AND has quantity > 0)
-  const isAvailable = product.inStock && product.stockQuantity > 0;
-  
   return (
     <Link href={`/product/${product.slug}`}>
-      <div className={`group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 ${!isAvailable ? 'opacity-75' : ''}`}>
+      <div className="group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           <Image
             src={product.image}
             alt={product.name}
             fill
-            className={`object-cover transition-transform duration-300 ${isAvailable ? 'group-hover:scale-105' : 'grayscale'}`}
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
           />
-          {product.isNew && isAvailable && (
+          {product.isNew && (
             <span className="absolute top-2 left-2 bg-primary-600 text-white text-xs px-2 py-1 rounded">
-              {language === 'ar' ? 'جديد' : 'New'}
+              New
             </span>
           )}
-          {product.isFeatured && isAvailable && (
+          {product.isFeatured && (
             <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-              {language === 'ar' ? 'مميز' : 'Hot'}
+              Hot
             </span>
           )}
-          {!isAvailable && (
-            <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-              <span className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm">
-                {t('outOfStock')}
+          {!product.inStock && (
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <span className="bg-white text-gray-900 px-4 py-2 rounded font-semibold">
+                Out of Stock
               </span>
             </div>
-          )}
-          {isAvailable && product.stockQuantity <= 5 && (
-            <span className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-1 rounded">
-              Only {product.stockQuantity} left
-            </span>
           )}
         </div>
 
         <div className="p-4">
-          {/* Category + name block given fixed height so all cards align */}
           <div className="min-h-[3.5rem]">
             <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 truncate">
               {product.category}
@@ -60,7 +62,6 @@ export default function ProductCard({ product }: ProductCardProps) {
             </h3>
           </div>
 
-          {/* Rating */}
           <div className="flex items-center mb-2">
             {[...Array(5)].map((_, i) => (
               <svg
@@ -81,16 +82,10 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           <div className="flex items-center justify-between">
             <p className="text-xl font-bold text-gray-900">
-              {formatPrice(product.price, language === 'ar' ? 'ar-BH' : 'en-BH')}
+              {formatPriceLocal(product.price)}
             </p>
-            {isAvailable ? (
-              product.stockQuantity <= 5 ? (
-                <span className="text-xs text-orange-600 font-bold">Low Stock</span>
-              ) : (
-                <span className="text-xs text-green-600 font-medium">{t('inStock')}</span>
-              )
-            ) : (
-              <span className="text-xs text-red-600 font-bold">{t('outOfStock')}</span>
+            {product.inStock && (
+              <span className="text-xs text-green-600 font-medium">In Stock</span>
             )}
           </div>
         </div>
@@ -98,4 +93,3 @@ export default function ProductCard({ product }: ProductCardProps) {
     </Link>
   );
 }
-

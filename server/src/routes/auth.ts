@@ -178,17 +178,30 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    // Special hardcoded admin shortcut so you can always log in as admin,
-    // even if the database user or password hash is inconsistent.
+    // Special admin shortcut so you can always log in as admin with the known credentials.
+    // Unlike before, we ENSURE there is a real DB user record so foreign keys (e.g. orders.user_id)
+    // point to a valid user and don't violate constraints.
     if (identifier.toLowerCase() === 'admin@hellobahrain.com' && password === 'Admin@1234') {
-      console.log('✅ Admin shortcut activated - bypassing DB check');
-      // Use a fixed UUID for admin shortcut (consistent across restarts)
-      const adminUser = {
-        id: '00000000-0000-0000-0000-000000000001',
-        name: 'Admin User',
-        email: 'admin@hellobahrain.com',
-        role: 'admin' as const,
-      };
+      console.log('✅ Admin shortcut activated - ensuring admin user exists in DB');
+
+      const adminEmail = 'admin@hellobahrain.com';
+
+      // Try to find existing admin user in DB
+      let adminUser = await supabaseHelpers.findUserByEmail(adminEmail);
+
+      // If not found, create it with the known password
+      if (!adminUser) {
+        const passwordHash = await bcrypt.hash('Admin@1234', 10);
+        adminUser = await supabaseHelpers.createUser({
+          name: 'Admin User',
+          email: adminEmail.toLowerCase(),
+          password_hash: passwordHash,
+          role: 'admin',
+        });
+        console.log('✅ Admin user created in DB with id:', adminUser.id);
+      } else {
+        console.log('ℹ️ Admin user already exists in DB with id:', adminUser.id);
+      }
 
       const token = generateToken(adminUser.id, adminUser.role);
 
@@ -208,7 +221,15 @@ router.post('/login', async (req: Request, res: Response) => {
         tokenLength: token.length,
       });
 
-      res.json({ user: adminUser, token });
+      res.json({
+        user: {
+          id: adminUser.id,
+          name: adminUser.name,
+          email: adminUser.email,
+          role: adminUser.role,
+        },
+        token,
+      });
       return;
     }
 
@@ -293,21 +314,6 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       res.status(401).json({ message: 'Not authenticated' });
-      return;
-    }
-
-    // Handle admin shortcut user (doesn't exist in DB)
-    if (req.user.id === '00000000-0000-0000-0000-000000000001') {
-      console.log('✅ Returning admin shortcut user (no DB lookup needed)');
-      res.json({
-        user: {
-          id: '00000000-0000-0000-0000-000000000001',
-          name: 'Admin User',
-          email: 'admin@hellobahrain.com',
-          phone: '',
-          role: 'admin',
-        },
-      });
       return;
     }
 
