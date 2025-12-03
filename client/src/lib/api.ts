@@ -10,10 +10,48 @@ export const api = axios.create({
   },
 });
 
+// Add request interceptor for debugging and auth token
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window !== 'undefined') {
+      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+        baseURL: config.baseURL,
+        origin: window.location.origin,
+      });
+      
+      // Add token from localStorage if available
+      const token = localStorage.getItem('token');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Add response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (typeof window !== 'undefined') {
+      console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.status);
+    }
+    return response;
+  },
   (error) => {
+    if (typeof window !== 'undefined') {
+      console.error('[API Error]', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        message: error.message,
+        response: error.response?.data,
+        cors: error.code === 'ERR_NETWORK' || error.message?.includes('CORS'),
+      });
+    }
+    
     if (error.response?.status === 401) {
       // Handle unauthorized - could redirect to login
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {

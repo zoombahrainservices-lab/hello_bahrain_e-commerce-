@@ -37,16 +37,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (identifier: string, password: string) => {
     const response = await api.post('/api/auth/login', { identifier, password });
     setUser(response.data.user);
+    // Store token in localStorage for cross-domain auth
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+    }
   };
 
   const register = async (name: string, email: string, password: string, phone: string) => {
     const response = await api.post('/api/auth/register', { name, email, password, phone });
     setUser(response.data.user);
+    // Store token in localStorage for cross-domain auth
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+    }
   };
 
   const logout = async () => {
     await api.post('/api/auth/logout');
     setUser(null);
+    // Clear token from localStorage
+    localStorage.removeItem('token');
   };
 
   return (

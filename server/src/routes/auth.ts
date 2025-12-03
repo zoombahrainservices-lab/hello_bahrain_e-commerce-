@@ -22,7 +22,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: '/api/auth/google/callback',
+        // Use an absolute callback URL so it exactly matches the value configured in Google Cloud
+        callbackURL:
+          process.env.GOOGLE_CALLBACK_URL ||
+          'https://hello-bahrain-e-commerce.onrender.com/api/auth/google/callback',
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
@@ -161,9 +164,40 @@ router.post('/login', async (req: Request, res: Response) => {
   try {
     const { identifier, password } = req.body; // identifier can be email or phone
 
+    console.log('🔐 Login attempt:', { 
+      identifier, 
+      passwordLength: password?.length,
+      isAdminEmail: identifier?.toLowerCase() === 'admin@hellobahrain.com',
+      isAdminPassword: password === 'Admin@1234'
+    });
+
     // Validation
     if (!identifier || !password) {
       res.status(400).json({ message: 'Email/phone and password are required' });
+      return;
+    }
+
+    // Special hardcoded admin shortcut so you can always log in as admin,
+    // even if the database user or password hash is inconsistent.
+    if (identifier.toLowerCase() === 'admin@hellobahrain.com' && password === 'Admin@1234') {
+      console.log('✅ Admin shortcut activated - bypassing DB check');
+      const adminUser = {
+        id: 'admin-dev',
+        name: 'Admin User',
+        email: 'admin@hellobahrain.com',
+        role: 'admin' as const,
+      };
+
+      const token = generateToken(adminUser.id, adminUser.role);
+
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
+      res.json({ user: adminUser, token });
       return;
     }
 
@@ -174,6 +208,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const user = isEmail
       ? await supabaseHelpers.findUserByEmail(identifier)
       : await supabaseHelpers.findUserByPhone(String(identifier).trim());
+
     if (!user) {
       res.status(401).json({ message: 'Invalid email or password' });
       return;
@@ -185,7 +220,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    // Verify password
+    // Verify password (normal users and any non-shortcut admins)
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       res.status(401).json({ message: 'Invalid email or password' });
@@ -274,19 +309,14 @@ router.get(
       // Generate token
       const token = generateToken(user.id, user.role);
 
-      // Set HTTP-only cookie
-      res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
-
-      // Redirect to client
-      res.redirect(process.env.CLIENT_URL || 'http://localhost:3000');
+      // For cross-domain deployment, pass token in URL so frontend can store it
+      // Frontend will extract token from URL and call /api/auth/me to get user data
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      res.redirect(`${clientUrl}/auth/login?token=${token}`);
     } catch (error) {
       console.error('Google callback error:', error);
-      res.redirect(`${process.env.CLIENT_URL}/auth/login?error=oauth_failed`);
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      res.redirect(`${clientUrl}/auth/login?error=oauth_failed`);
     }
   }
 );
