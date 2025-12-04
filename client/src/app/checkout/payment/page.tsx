@@ -92,7 +92,7 @@ export default function PaymentPage() {
       }
 
       clearCart();
-      router.push('/profile/orders?success=true');
+      router.push('/cart?orderSuccess=true');
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || 'Failed to create order';
       if (errorMsg.toLowerCase().includes('stock') || errorMsg.toLowerCase().includes('insufficient')) {
