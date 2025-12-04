@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -175,7 +175,7 @@ export default function PaymentPage() {
   }
 
   return (
-    <>
+    <React.Fragment>
       <Script
         src={process.env.NEXT_PUBLIC_EAZYPAY_CHECKOUT_JS}
         strategy="afterInteractive"
@@ -192,14 +192,14 @@ export default function PaymentPage() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold mb-2">Payment</h1>
-      <p className="text-sm text-gray-600 mb-6">
-        Choose how you&apos;d like to pay. Your data is processed securely as described in our{' '}
-        <Link href="/privacy-policy" className="text-primary-600 hover:text-primary-700 underline">
-          Privacy Policy
-        </Link>
-        .
-      </p>
+        <h1 className="text-3xl font-bold mb-2">Payment</h1>
+        <p className="text-sm text-gray-600 mb-6">
+          Choose how you&apos;d like to pay. Your data is processed securely as described in our{' '}
+          <Link href="/privacy-policy" className="text-primary-600 hover:text-primary-700 underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Payment + Shipping Summary */}
@@ -345,7 +345,7 @@ export default function PaymentPage() {
           </div>
         </div>
       </div>
-    </>
+    </React.Fragment>
   );
 }
 
