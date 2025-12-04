@@ -108,17 +108,13 @@ export default function PaymentPage() {
 
       const orderId = `HELLOONE-${Date.now()}`;
 
-      const res = await fetch('/api/eazypay/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, amount: totalAmount, currency: 'BHD' }),
+      const response = await api.post('/api/eazypay/session', {
+        orderId,
+        amount: totalAmount,
+        currency: 'BHD',
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || data?.error || 'Failed to create EazyPay session');
-      }
-
+      const data = response.data || {};
       const sessionId = data.sessionId as string | undefined;
       if (!sessionId) {
         throw new Error('Missing sessionId from EazyPay response');
@@ -142,7 +138,12 @@ export default function PaymentPage() {
       window.Checkout.showPaymentPage();
     } catch (err: any) {
       console.error('EazyPay start error', err);
-      setError(err?.message || 'Could not start EazyPay payment. Please try again.');
+      const backendMessage = err.response?.data?.message || err.response?.data?.error;
+      if (backendMessage) {
+        setError(`EazyPay error: ${backendMessage}`);
+      } else {
+        setError(err?.message || 'Could not start EazyPay payment. Please try again.');
+      }
     }
   };
 
