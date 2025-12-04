@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { api } from '@/lib/api';
 import { Product } from '@/lib/types';
+import { formatPrice } from '@/lib/currency';
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -96,7 +97,9 @@ export default function AdminProductsPage() {
                       <p className="text-sm text-gray-500">{product.slug}</p>
                     </td>
                     <td className="py-3 px-4">{product.category}</td>
-                    <td className="py-3 px-4 font-semibold">${product.price.toFixed(2)}</td>
+                    <td className="py-3 px-4 font-semibold">
+                      {formatPrice(product.price, 'en-BH')}
+                    </td>
                     <td className="py-3 px-4">
                       {product.inStock ? (
                         <span className="text-green-600">{product.stockQuantity}</span>

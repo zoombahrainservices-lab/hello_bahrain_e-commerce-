@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Order } from '@/lib/types';
+import { formatPrice } from '@/lib/currency';
 
 interface Summary {
   totalUsers: number;
@@ -77,7 +78,9 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm">Total Revenue</p>
-              <p className="text-3xl font-bold mt-2">${summary.totalRevenue.toFixed(2)}</p>
+              <p className="text-3xl font-bold mt-2">
+                {formatPrice(summary.totalRevenue, 'en-BH')}
+              </p>
             </div>
             <div className="bg-yellow-100 p-3 rounded-lg">
               <span className="text-3xl">💰</span>
@@ -129,7 +132,9 @@ export default function AdminDashboard() {
                     <tr key={orderId} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4 font-mono text-sm">{orderId.slice(-8)}</td>
                       <td className="py-3 px-4">{userEmail}</td>
-                      <td className="py-3 px-4 font-semibold">${order.total.toFixed(2)}</td>
+                      <td className="py-3 px-4 font-semibold">
+                        {formatPrice(order.total, 'en-BH')}
+                      </td>
                       <td className="py-3 px-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Order } from '@/lib/types';
+import { formatPrice } from '@/lib/currency';
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -98,7 +99,9 @@ export default function AdminOrdersPage() {
                     <tr className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4 font-mono text-sm">{orderId ? orderId.slice(-8) : 'N/A'}</td>
                       <td className="py-3 px-4">{userEmail}</td>
-                      <td className="py-3 px-4 font-semibold">${order.total?.toFixed(2) || '0.00'}</td>
+                      <td className="py-3 px-4 font-semibold">
+                        {formatPrice(order.total || 0, 'en-BH')}
+                      </td>
                       <td className="py-3 px-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
@@ -149,7 +152,8 @@ export default function AdminOrdersPage() {
                                 {order.items && order.items.length > 0 ? (
                                   order.items.map((item: any, idx: number) => (
                                     <div key={idx} className="text-sm">
-                                      {item.name} x {item.quantity} - ${((item.price || 0) * (item.quantity || 0)).toFixed(2)}
+                                      {item.name} x {item.quantity} -{' '}
+                                      {formatPrice((item.price || 0) * (item.quantity || 0), 'en-BH')}
                                     </div>
                                   ))
                                 ) : (
