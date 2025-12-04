@@ -55,7 +55,7 @@ export default function AdminDashboard() {
               <p className="text-gray-500 text-sm">Total Users</p>
               <p className="text-3xl font-bold mt-2">{summary.totalUsers}</p>
             </div>
-            <div className="bg-blue-100 p-3 rounded-lg">
+            <div className="bg-red-100 p-3 rounded-lg">
               <span className="text-3xl">👥</span>
             </div>
           </div>

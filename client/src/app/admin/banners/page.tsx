@@ -603,7 +603,7 @@ export default function AdminBannersPage() {
               <div className="flex space-x-2 ml-4">
                 <button
                   onClick={() => handleToggleActive(banner)}
-                  className="text-blue-600 hover:text-blue-800 px-3 py-1"
+                  className="text-red-600 hover:text-red-800 px-3 py-1"
                 >
                   {banner.active ? 'Deactivate' : 'Activate'}
                 </button>

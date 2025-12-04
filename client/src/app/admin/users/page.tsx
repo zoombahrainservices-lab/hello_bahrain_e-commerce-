@@ -80,7 +80,7 @@ export default function AdminUsersPage() {
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
                         user.role === 'admin'
                           ? 'bg-purple-100 text-purple-800'
-                          : 'bg-blue-100 text-blue-800'
+                          : 'bg-red-100 text-red-800'
                       }`}
                     >
                       {user.role}

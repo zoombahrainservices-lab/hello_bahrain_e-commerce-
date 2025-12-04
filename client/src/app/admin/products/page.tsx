@@ -109,7 +109,7 @@ export default function AdminProductsPage() {
                       <div className="flex space-x-2">
                         <Link
                           href={`/admin/products/${productId}`}
-                          className="text-blue-600 hover:text-blue-800"
+                          className="text-red-600 hover:text-red-800"
                         >
                           Edit
                         </Link>
