@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useState } from 'react';
@@ -21,8 +22,15 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
-            <span className="text-2xl font-bold text-primary-600">HelloBahrain</span>
+          <Link href="/" className="flex items-center space-x-2">
+            <Image
+              src="/logo.jpg"
+              alt="HellowOneBahrain Logo"
+              width={40}
+              height={40}
+              className="object-contain"
+            />
+            <span className="text-2xl font-bold text-primary-600">HellowOneBahrain</span>
           </Link>
 
           {/* Desktop Navigation */}

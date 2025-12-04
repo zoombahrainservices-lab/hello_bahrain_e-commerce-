@@ -9,8 +9,12 @@ import Footer from '@/components/Footer';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'HelloBahrain - Premium Merchandise',
+  title: 'HellowOneBahrain - Premium Merchandise',
   description: 'Shop the latest collection of premium merchandise and apparel',
+  icons: {
+    icon: '/logo.jpg',
+    apple: '/logo.jpg',
+  },
 };
 
 export default function RootLayout({
