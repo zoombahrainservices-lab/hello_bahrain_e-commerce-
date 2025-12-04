@@ -50,19 +50,19 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white transition">
-                  Shipping Info
-                </a>
+                <Link href="/shipping-policy" className="text-gray-400 hover:text-white transition">
+                  Shipping Policy
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white transition">
-                  Returns
-                </a>
+                <Link href="/refund-return-policy" className="text-gray-400 hover:text-white transition">
+                  Refund / Return Policy
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white transition">
+                <Link href="/contact" className="text-gray-400 hover:text-white transition">
                   Contact Us
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -90,7 +90,27 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
+        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400 space-y-2">
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link href="/" className="hover:text-white transition">
+              Home
+            </Link>
+            <Link href="/?category=All" className="hover:text-white transition">
+              Shop
+            </Link>
+            <Link href="/privacy-policy" className="hover:text-white transition">
+              Privacy Policy
+            </Link>
+            <Link href="/terms-and-conditions" className="hover:text-white transition">
+              Terms &amp; Conditions
+            </Link>
+            <Link href="/refund-return-policy" className="hover:text-white transition">
+              Refund / Return Policy
+            </Link>
+            <Link href="/shipping-policy" className="hover:text-white transition">
+              Shipping Policy
+            </Link>
+          </div>
           <p>&copy; {new Date().getFullYear()} HellowOneBahrain. All rights reserved.</p>
         </div>
       </div>

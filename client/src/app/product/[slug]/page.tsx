@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatPrice } from '@/lib/currency';
 import ProductCard from '@/components/ProductCard';
+import Link from 'next/link';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -251,6 +252,14 @@ export default function ProductDetailPage() {
               </div>
             ) : null
           )}
+
+          <p className="text-xs text-gray-500 mt-4">
+            Secure checkout &amp; protected data —{' '}
+            <Link href="/privacy-policy" className="text-primary-600 hover:text-primary-700 underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </div>
       </div>
 

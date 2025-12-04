@@ -284,6 +284,18 @@ export default function RegisterPage() {
           </button>
         </form>
 
+        <p className="mt-3 text-xs text-gray-500 text-center">
+          By creating an account, you agree to our{' '}
+          <Link href="/privacy-policy" className="text-primary-600 hover:text-primary-700 underline">
+            Privacy Policy
+          </Link>{' '}
+          and{' '}
+          <Link href="/terms-and-conditions" className="text-primary-600 hover:text-primary-700 underline">
+            Terms &amp; Conditions
+          </Link>
+          .
+        </p>
+
         <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

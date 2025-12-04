@@ -164,6 +164,18 @@ export default function LoginClient() {
             </button>
           </div>
 
+          <p className="mt-2 text-xs text-gray-500 text-center">
+            By logging in, you agree to our{' '}
+            <Link href="/privacy-policy" className="text-primary-600 hover:text-primary-700 underline">
+              Privacy Policy
+            </Link>{' '}
+            and{' '}
+            <Link href="/terms-and-conditions" className="text-primary-600 hover:text-primary-700 underline">
+              Terms &amp; Conditions
+            </Link>
+            .
+          </p>
+
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
@@ -197,5 +209,7 @@ export default function LoginClient() {
     </div>
   );
 }
+
+
 
 

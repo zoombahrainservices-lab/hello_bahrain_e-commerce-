@@ -304,6 +304,35 @@ export default function ProfilePage() {
                 View Orders
               </Link>
             </div>
+
+            <div className="mt-8 border-t pt-4">
+              <h3 className="text-lg font-semibold mb-2">Privacy &amp; Data</h3>
+              <div className="space-y-1 text-sm text-gray-700">
+                <p>
+                  <Link href="/privacy-policy" className="text-primary-600 hover:text-primary-700 underline">
+                    Privacy Policy
+                  </Link>
+                </p>
+                <p>
+                  Data deletion request:{' '}
+                  <a
+                    href="mailto:support@zoombahrain.co?subject=Data%20Deletion%20Request"
+                    className="text-primary-600 hover:text-primary-700 underline"
+                  >
+                    contact support
+                  </a>
+                </p>
+                <p>
+                  Email preferences:{' '}
+                  <a
+                    href="mailto:support@zoombahrain.co?subject=Email%20Preferences"
+                    className="text-primary-600 hover:text-primary-700 underline"
+                  >
+                    unsubscribe / manage notifications
+                  </a>
+                </p>
+              </div>
+            </div>
           </form>
         </div>
       )}

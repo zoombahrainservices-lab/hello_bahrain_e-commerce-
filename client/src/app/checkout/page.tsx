@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -218,6 +219,14 @@ export default function CheckoutPage() {
                   />
                 </div>
               </div>
+
+              <p className="mt-4 text-xs text-gray-500">
+                Your data is processed securely as described in our{' '}
+                <Link href="/privacy-policy" className="text-primary-600 hover:text-primary-700 underline">
+                  Privacy Policy
+                </Link>
+                .
+              </p>
 
               <button
                 type="submit"
