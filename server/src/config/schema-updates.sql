@@ -38,17 +38,19 @@ CREATE TRIGGER trigger_update_user_addresses_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_user_addresses_updated_at();
 
+-- Categories table for managing product categories in admin
+CREATE TABLE IF NOT EXISTS categories (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(100) UNIQUE NOT NULL,
+  slug VARCHAR(150) UNIQUE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
+CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);
 
-
-
-
-
-
-
-
-
-
-
-
-
+-- Trigger to keep categories.updated_at in sync
+CREATE TRIGGER IF NOT EXISTS update_categories_updated_at
+  BEFORE UPDATE ON categories
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();

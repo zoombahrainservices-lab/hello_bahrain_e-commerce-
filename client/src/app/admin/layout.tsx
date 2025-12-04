@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const adminNavItems = [
   { label: 'Dashboard', href: '/admin', icon: '📊' },
   { label: 'Products', href: '/admin/products', icon: '📦' },
+  { label: 'Categories', href: '/admin/categories', icon: '🏷️' },
   { label: 'Orders', href: '/admin/orders', icon: '🛒' },
   { label: 'Users', href: '/admin/users', icon: '👥' },
   { label: 'Banners', href: '/admin/banners', icon: '🎨' },

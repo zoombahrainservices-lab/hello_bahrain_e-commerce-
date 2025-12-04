@@ -970,4 +970,155 @@ router.patch('/users/:id/role', async (req: Request, res: Response) => {
   }
 });
 
+// ========== CATEGORY MANAGEMENT ==========
+
+// Helper to generate slugs from names
+const toSlug = (name: string) =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'category';
+
+// GET /api/admin/categories - list categories
+router.get('/categories', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await getSupabase()
+      .from('categories')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const categories = (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ message: 'Error fetching categories' });
+  }
+});
+
+// POST /api/admin/categories - create category
+router.post('/categories', async (req: Request, res: Response) => {
+  try {
+    const { name, slug } = req.body;
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ message: 'Category name is required' });
+      return;
+    }
+
+    const finalSlug = (slug && typeof slug === 'string' && slug.trim()) || toSlug(name);
+
+    const { data, error } = await getSupabase()
+      .from('categories')
+      .insert({
+        name: name.trim(),
+        slug: finalSlug,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      if ((error as any).code === '23505') {
+        res.status(400).json({ message: 'Category with this name or slug already exists' });
+        return;
+      }
+      throw error;
+    }
+
+    res.status(201).json({
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    });
+  } catch (error) {
+    console.error('Error creating category:', error);
+    res.status(500).json({ message: 'Error creating category' });
+  }
+});
+
+// PUT /api/admin/categories/:id - update category
+router.put('/categories/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, slug } = req.body;
+
+    const updates: any = {};
+    if (name !== undefined) updates.name = String(name).trim();
+    if (slug !== undefined) {
+      updates.slug = String(slug).trim() || toSlug(updates.name || '');
+    }
+
+    if (!updates.name && !updates.slug) {
+      res.status(400).json({ message: 'Nothing to update' });
+      return;
+    }
+
+    const { data, error } = await getSupabase()
+      .from('categories')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      if ((error as any).code === 'PGRST116') {
+        res.status(404).json({ message: 'Category not found' });
+        return;
+      }
+      if ((error as any).code === '23505') {
+        res.status(400).json({ message: 'Category with this name or slug already exists' });
+        return;
+      }
+      throw error;
+    }
+
+    res.json({
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    });
+  } catch (error) {
+    console.error('Error updating category:', error);
+    res.status(500).json({ message: 'Error updating category' });
+  }
+});
+
+// DELETE /api/admin/categories/:id - delete category
+router.delete('/categories/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await getSupabase()
+      .from('categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      if ((error as any).code === 'PGRST116') {
+        res.status(404).json({ message: 'Category not found' });
+        return;
+      }
+      throw error;
+    }
+
+    res.json({ message: 'Category deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    res.status(500).json({ message: 'Error deleting category' });
+  }
+});
+
 export default router;
