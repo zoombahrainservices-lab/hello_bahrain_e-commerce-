@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);
 
 -- Trigger to keep categories.updated_at in sync
-CREATE TRIGGER IF NOT EXISTS update_categories_updated_at
+DROP TRIGGER IF EXISTS update_categories_updated_at ON categories;
+CREATE TRIGGER update_categories_updated_at
   BEFORE UPDATE ON categories
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
