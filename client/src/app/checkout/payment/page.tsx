@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import Script from 'next/script';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -41,6 +40,39 @@ export default function PaymentPage() {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'benefit' | 'cod'>('card');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Load EazyPay checkout script
+  useEffect(() => {
+    const scriptUrl = process.env.NEXT_PUBLIC_EAZYPAY_CHECKOUT_JS;
+    if (!scriptUrl || typeof window === 'undefined') return;
+
+    // Check if script already loaded
+    if (window.Checkout) return;
+
+    const script = document.createElement('script');
+    script.src = scriptUrl;
+    script.async = true;
+    script.setAttribute('data-error', 'errorCallback');
+    script.setAttribute('data-cancel', 'cancelCallback');
+
+    window.errorCallback = (error: unknown) => {
+      console.error('EazyPay error', error);
+    };
+
+    window.cancelCallback = () => {
+      console.log('EazyPay payment cancelled');
+    };
+
+    document.body.appendChild(script);
+
+    return () => {
+      // Cleanup on unmount
+      const existingScript = document.querySelector(`script[src="${scriptUrl}"]`);
+      if (existingScript) {
+        document.body.removeChild(existingScript);
+      }
+    };
+  }, []);
 
   // Load saved shipping info; guard routes
   useEffect(() => {
@@ -175,23 +207,7 @@ export default function PaymentPage() {
   }
 
   return (
-    <div>
-      <Script
-        src={process.env.NEXT_PUBLIC_EAZYPAY_CHECKOUT_JS}
-        strategy="afterInteractive"
-        data-error="errorCallback"
-        data-cancel="cancelCallback"
-        onLoad={() => {
-          window.errorCallback = (error) => {
-            console.error('EazyPay error', error);
-          };
-          window.cancelCallback = () => {
-            console.log('EazyPay payment cancelled');
-          };
-        }}
-      />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold mb-2">Payment</h1>
         <p className="text-sm text-gray-600 mb-6">
           Choose how you&apos;d like to pay. Your data is processed securely as described in our{' '}
