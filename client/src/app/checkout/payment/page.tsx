@@ -4,11 +4,20 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatPrice } from '@/lib/currency';
 import { api } from '@/lib/api';
+
+declare global {
+  interface Window {
+    Checkout?: any;
+    errorCallback?: (err: unknown) => void;
+    cancelCallback?: () => void;
+  }
+}
 
 type ShippingFormData = {
   fullName: string;
@@ -57,6 +66,54 @@ export default function PaymentPage() {
     }
   }, [authLoading, user, items.length, router]);
 
+  const startOnlinePayment = async () => {
+    try {
+      const totalAmount = getTotal();
+      if (!totalAmount || totalAmount <= 0) {
+        setError('Invalid order total');
+        return;
+      }
+
+      const orderId = `HELLOONE-${Date.now()}`;
+
+      const res = await fetch('/api/eazypay/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, amount: totalAmount, currency: 'BHD' }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || data?.error || 'Failed to create EazyPay session');
+      }
+
+      const sessionId = data.sessionId as string | undefined;
+      if (!sessionId) {
+        throw new Error('Missing sessionId from EazyPay response');
+      }
+
+      if (!window.Checkout) {
+        throw new Error('EazyPay Checkout.js not loaded');
+      }
+
+      window.Checkout.configure({
+        session: { id: sessionId },
+        interaction: {
+          operation: 'PURCHASE',
+          displayControl: {
+            billingAddress: 'HIDE',
+            shippingAddress: 'HIDE',
+          },
+        },
+      });
+
+      window.Checkout.showPaymentPage();
+    } catch (err: any) {
+      console.error('EazyPay start error', err);
+      setError(err?.message || 'Could not start EazyPay payment. Please try again.');
+    }
+  };
+
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shipping) return;
@@ -76,25 +133,29 @@ export default function PaymentPage() {
     setSubmitting(true);
 
     try {
-      const orderData = {
-        items: items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-        })),
-        shippingAddress: shipping,
-        paymentMethod,
-      };
+      if (paymentMethod === 'cod') {
+        const orderData = {
+          items: items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+          shippingAddress: shipping,
+          paymentMethod,
+        };
 
-      await api.post('/api/orders', orderData);
+        await api.post('/api/orders', orderData);
 
-      if (typeof window !== 'undefined') {
-        window.localStorage.removeItem(SHIPPING_STORAGE_KEY);
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem(SHIPPING_STORAGE_KEY);
+        }
+
+        clearCart();
+        router.push('/cart?orderSuccess=true');
+      } else {
+        await startOnlinePayment();
       }
-
-      clearCart();
-      router.push('/cart?orderSuccess=true');
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || 'Failed to create order';
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to create order';
       if (errorMsg.toLowerCase().includes('stock') || errorMsg.toLowerCase().includes('insufficient')) {
         setError(`${errorMsg}. Please update your cart and try again.`);
       } else {
@@ -114,7 +175,23 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
+      <Script
+        src={process.env.NEXT_PUBLIC_EAZYPAY_CHECKOUT_JS}
+        strategy="afterInteractive"
+        data-error="errorCallback"
+        data-cancel="cancelCallback"
+        onLoad={() => {
+          window.errorCallback = (error) => {
+            console.error('EazyPay error', error);
+          };
+          window.cancelCallback = () => {
+            console.log('EazyPay payment cancelled');
+          };
+        }}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-3xl font-bold mb-2">Payment</h1>
       <p className="text-sm text-gray-600 mb-6">
         Choose how you&apos;d like to pay. Your data is processed securely as described in our{' '}
@@ -268,7 +345,7 @@ export default function PaymentPage() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

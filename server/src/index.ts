@@ -13,6 +13,7 @@ import orderRoutes from './routes/orders';
 import adminRoutes from './routes/admin';
 import profileRoutes from './routes/profile';
 import publicCategoryRoutes from './routes/categories';
+import eazypayRoutes from './routes/eazypay';
 
 // Load environment variables
 dotenv.config();
@@ -65,6 +66,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/categories', publicCategoryRoutes);
+app.use('/api/eazypay', eazypayRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
