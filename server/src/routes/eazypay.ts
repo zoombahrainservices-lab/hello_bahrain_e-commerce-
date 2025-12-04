@@ -63,7 +63,7 @@ router.post('/session', async (req: Request, res: Response) => {
       return;
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     const sessionId = data?.session?.id;
 
     if (!sessionId) {
