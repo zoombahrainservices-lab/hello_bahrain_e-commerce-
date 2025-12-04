@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatPrice } from '@/lib/currency';
-import { api } from '@/lib/api';
 
 export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
@@ -60,28 +59,10 @@ export default function CheckoutPage() {
     setSubmitting(true);
 
     try {
-      // Prepare order data
-      const orderData = {
-        items: items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-        })),
-        shippingAddress: formData,
-      };
-
-      await api.post('/api/orders', orderData);
-
-      // Clear cart and redirect
-      clearCart();
-      router.push('/profile/orders?success=true');
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || 'Failed to create order';
-      // Check if error is about stock
-      if (errorMsg.toLowerCase().includes('stock') || errorMsg.toLowerCase().includes('insufficient')) {
-        setError(`${errorMsg}. Please update your cart and try again.`);
-      } else {
-        setError(errorMsg);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('hb_shipping_address', JSON.stringify(formData));
       }
+      router.push('/checkout/payment');
     } finally {
       setSubmitting(false);
     }
