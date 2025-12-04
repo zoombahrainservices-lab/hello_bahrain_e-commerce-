@@ -164,7 +164,9 @@ export default function ImageUpload({
               Drag and drop images here, or click to select
             </p>
             <p className="text-sm text-gray-500">
-              PNG, JPG, GIF up to 5MB each (max {maxImages} images)
+              PNG, JPG, GIF up to 5MB each (max {maxImages} images). You can select multiple
+              files at once in the file picker (hold Ctrl / Cmd while clicking), or drag and
+              drop several images together.
             </p>
             {required && images.length === 0 && (
               <p className="text-sm text-red-500 mt-2">At least one image is required</p>
