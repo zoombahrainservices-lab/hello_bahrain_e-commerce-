@@ -175,7 +175,7 @@ export default function PaymentPage() {
   }
 
   return (
-    <React.Fragment>
+    <>
       <Script
         src={process.env.NEXT_PUBLIC_EAZYPAY_CHECKOUT_JS}
         strategy="afterInteractive"
@@ -345,7 +345,7 @@ export default function PaymentPage() {
           </div>
         </div>
       </div>
-    </React.Fragment>
+    </>
   );
 }
 
