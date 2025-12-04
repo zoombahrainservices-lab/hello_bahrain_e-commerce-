@@ -12,6 +12,7 @@ import bannerRoutes from './routes/banners';
 import orderRoutes from './routes/orders';
 import adminRoutes from './routes/admin';
 import profileRoutes from './routes/profile';
+import publicCategoryRoutes from './routes/categories';
 
 // Load environment variables
 dotenv.config();
@@ -63,6 +64,7 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/categories', publicCategoryRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

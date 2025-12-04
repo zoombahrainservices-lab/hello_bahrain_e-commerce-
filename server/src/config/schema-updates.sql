@@ -54,3 +54,15 @@ CREATE TRIGGER IF NOT EXISTS update_categories_updated_at
   BEFORE UPDATE ON categories
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Seed common product categories (idempotent)
+INSERT INTO categories (name, slug) VALUES
+  ('T-Shirts', 't-shirts'),
+  ('Hoodies', 'hoodies'),
+  ('Bags', 'bags'),
+  ('Accessories', 'accessories'),
+  ('Caps', 'caps'),
+  ('Bottles', 'bottles'),
+  ('Souvenirs', 'souvenirs'),
+  ('Luxury Items', 'luxury-items')
+ON CONFLICT (name) DO NOTHING;
