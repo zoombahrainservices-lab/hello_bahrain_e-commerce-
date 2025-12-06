@@ -7,7 +7,11 @@ import { Product, Banner } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
 import BannerCarousel from '@/components/BannerCarousel';
 
-const categories = ['All', 'T-Shirts', 'Hoodies', 'Bags', 'Bottles', 'Caps', 'Accessories', 'Souvenirs', 'Luxury Items'];
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 const sortOptions = [
   { value: 'newest', label: 'Newest' },
@@ -22,6 +26,7 @@ function MerchPageContent() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
@@ -34,6 +39,7 @@ function MerchPageContent() {
 
   useEffect(() => {
     fetchBanners();
+    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -56,6 +62,21 @@ function MerchPageContent() {
       if (error.code === 'ERR_NETWORK' || error.message?.includes('CORS')) {
         console.warn('CORS or network error when fetching banners');
       }
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/api/categories');
+      if (response.data && Array.isArray(response.data)) {
+        setCategories(response.data);
+      } else {
+        setCategories([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching categories:', error);
+      // Fallback to empty array if categories fail to load
+      setCategories([]);
     }
   };
 
@@ -120,17 +141,29 @@ function MerchPageContent() {
         {/* Category Navigation */}
         <div className="mb-8">
           <div className="flex flex-wrap gap-2 mb-6">
+            {/* Always show "All" first */}
+            <button
+              onClick={() => updateParams('category', '')}
+              className={`px-4 py-2 rounded-lg transition ${
+                category === 'All' || !category
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              All
+            </button>
+            {/* Show fetched categories */}
             {categories.map((cat) => (
               <button
-                key={cat}
-                onClick={() => updateParams('category', cat === 'All' ? '' : cat)}
+                key={cat.id}
+                onClick={() => updateParams('category', cat.name)}
                 className={`px-4 py-2 rounded-lg transition ${
-                  category === cat || (cat === 'All' && !category)
+                  category === cat.name
                     ? 'bg-primary-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                {cat}
+                {cat.name}
               </button>
             ))}
           </div>
