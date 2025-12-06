@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
 
       <div className="space-y-6 text-gray-800 leading-relaxed">
         <p>
-          Welcome to Hello One Bahrain (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;).
+          Welcome to <span className="text-primary-600 font-semibold">Hello One Bahrain</span>.
         </p>
         <p>
           This Privacy Policy explains how we collect, use, disclose, and protect your information when you visit
@@ -97,7 +97,7 @@ export default function PrivacyPolicyPage() {
 
         <h3 className="text-xl font-semibold mt-4">3.5 Business Transfers</h3>
         <p>
-          If Hello One Bahrain or Zoom Consultancy merges or sells assets, user data may be transferred securely
+          If <span className="text-primary-600 font-semibold">Hello One Bahrain</span> or Zoom Consultancy merges or sells assets, user data may be transferred securely
           as part of that transaction.
         </p>
 
@@ -194,5 +194,7 @@ export default function PrivacyPolicyPage() {
     </div>
   );
 }
+
+
 
 
