@@ -88,30 +88,38 @@ export default function ProductDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
         {/* Images */}
         <div>
-          <div className="relative aspect-square mb-4 bg-gray-100 rounded-lg overflow-hidden">
+          {/* Main Image */}
+          <div className="relative aspect-square mb-4 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 group cursor-zoom-in">
             <Image
               src={images[selectedImage]}
               alt={product.name}
               fill
-              className="object-cover"
+              className="object-contain transition-transform duration-300 ease-in-out group-hover:scale-110"
               priority
             />
           </div>
-          {images.length > 1 && (
-            <div className="grid grid-cols-4 gap-2">
-              {images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedImage(idx)}
-                  className={`relative aspect-square rounded-lg overflow-hidden ${
-                    selectedImage === idx ? 'ring-2 ring-primary-600' : ''
-                  }`}
-                >
-                  <Image src={img} alt={`${product.name} ${idx + 1}`} fill className="object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
+          
+          {/* Thumbnail Gallery - Always show, even for single image */}
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {images.map((img, idx) => (
+              <button
+                key={idx}
+                onClick={() => setSelectedImage(idx)}
+                className={`relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                  selectedImage === idx 
+                    ? 'border-primary-600 ring-2 ring-primary-200' 
+                    : 'border-gray-200 hover:border-gray-400'
+                }`}
+              >
+                <Image 
+                  src={img} 
+                  alt={`${product.name} ${idx + 1}`} 
+                  fill 
+                  className="object-cover" 
+                />
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Product Info */}

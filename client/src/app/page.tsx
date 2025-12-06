@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Product, Banner } from '@/lib/types';
@@ -32,15 +32,43 @@ function MerchPageContent() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
 
   const category = searchParams?.get('category') || 'All';
   const sort = searchParams?.get('sort') || 'newest';
   const search = searchParams?.get('search') || '';
 
+  // Sync search input with URL param
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
   useEffect(() => {
     fetchBanners();
     fetchCategories();
   }, []);
+
+  const updateParams = useCallback((key: string, value: string) => {
+    const params = new URLSearchParams(searchParams?.toString());
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    setPage(1); // Reset to page 1 when filtering
+    router.push(`/?${params.toString()}`);
+  }, [searchParams, router]);
+
+  // Debounced search - triggers automatically as user types
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchInput.trim() !== search) {
+        updateParams('search', searchInput.trim());
+      }
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timeoutId);
+  }, [searchInput, search, updateParams]);
 
   useEffect(() => {
     fetchProducts();
@@ -121,15 +149,13 @@ function MerchPageContent() {
     }
   };
 
-  const updateParams = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams?.toString());
-    if (value) {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-    setPage(1); // Reset to page 1 when filtering
-    router.push(`/?${params.toString()}`);
+  const handleSearch = () => {
+    updateParams('search', searchInput.trim());
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    updateParams('search', '');
   };
 
   return (
@@ -170,18 +196,41 @@ function MerchPageContent() {
 
           {/* Search and Sort */}
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search products..."
-                defaultValue={search}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    updateParams('search', e.currentTarget.value);
-                  }
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
+            <div className="flex-1 flex gap-2">
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch();
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                {search && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label="Clear search"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={handleSearch}
+                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Search
+              </button>
             </div>
             <select
               value={sort}
@@ -196,6 +245,26 @@ function MerchPageContent() {
             </select>
           </div>
         </div>
+
+        {/* Search Results Message */}
+        {search && !loading && (
+          <div className="mb-6 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <p className="text-blue-800 font-medium">
+                Showing {total} result{total !== 1 ? 's' : ''} for &quot;{search}&quot;
+              </p>
+            </div>
+            <button
+              onClick={handleClearSearch}
+              className="text-blue-600 hover:text-blue-800 underline text-sm font-medium"
+            >
+              Clear search
+            </button>
+          </div>
+        )}
 
         {/* Products Grid */}
         {loading ? (
