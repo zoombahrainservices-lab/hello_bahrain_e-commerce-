@@ -838,10 +838,10 @@ router.get('/orders', async (req: Request, res: Response) => {
         user_id: order.user_id,
         items: (order.order_items || []).map((item: any) => ({
           product: item.product_id,
-          name: item.product_name || 'Unknown Product',
+          name: item.name || 'Unknown Product',
           price: parseFloat(item.price.toString()),
           quantity: item.quantity,
-          image: item.product_image || '',
+          image: item.image || '',
         })),
         total: parseFloat(order.total.toString()),
         status: order.status,
