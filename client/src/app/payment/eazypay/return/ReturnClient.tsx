@@ -41,7 +41,7 @@ export default function ReturnClient() {
 
         if (isSuccess) {
           setStatus('success');
-          setMessage('Payment successful! Thank you for shopping with HellowOneBahrain.');
+          setMessage('Payment successful! Thank you for shopping with HelloOneBahrain.');
         } else {
           setStatus('failed');
           setMessage('Payment failed or cancelled.');
@@ -81,5 +81,6 @@ export default function ReturnClient() {
     </main>
   );
 }
+
 
 

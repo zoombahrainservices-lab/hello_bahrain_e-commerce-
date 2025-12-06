@@ -9,7 +9,7 @@ import Footer from '@/components/Footer';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'HellowOneBahrain - Premium Merchandise',
+  title: 'HelloOneBahrain - Premium Merchandise',
   description: 'Shop the latest collection of premium merchandise and apparel',
   icons: {
     icon: '/logo.jpg',

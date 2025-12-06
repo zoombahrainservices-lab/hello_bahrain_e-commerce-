@@ -25,12 +25,12 @@ export default function Header() {
           <Link href="/" className="flex items-center space-x-2">
             <Image
               src="/logo.jpg"
-              alt="HellowOneBahrain Logo"
+              alt="HelloOneBahrain Logo"
               width={40}
               height={40}
               className="object-contain"
             />
-            <span className="text-2xl font-bold text-primary-600">HellowOneBahrain</span>
+            <span className="text-2xl font-bold text-primary-600">HelloOneBahrain</span>
           </Link>
 
           {/* Desktop Navigation */}

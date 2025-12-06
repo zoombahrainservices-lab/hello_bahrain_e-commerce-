@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div>
-            <h3 className="text-xl font-bold mb-4">HellowOneBahrain</h3>
+            <h3 className="text-xl font-bold mb-4">HelloOneBahrain</h3>
             <p className="text-gray-400 text-sm">
               Your premier destination for quality merchandise and apparel.
             </p>
@@ -123,7 +123,7 @@ export default function Footer() {
               Shipping Policy
             </Link>
           </div>
-          <p>&copy; {new Date().getFullYear()} HellowOneBahrain. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} HelloOneBahrain. All rights reserved.</p>
         </div>
       </div>
     </footer>
