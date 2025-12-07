@@ -1,12 +1,15 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useCart } from '@/contexts/CartContext';
 
 type Status = 'loading' | 'success' | 'failed';
 
 export default function ReturnClient() {
   const params = useSearchParams();
+  const router = useRouter();
+  const { clearCart } = useCart();
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState('Verifying payment…');
 
@@ -42,6 +45,12 @@ export default function ReturnClient() {
         if (isSuccess) {
           setStatus('success');
           setMessage('Payment successful! Thank you for shopping with HelloOneBahrain.');
+          // Clear cart and redirect to cart page with success message
+          clearCart();
+          // Small delay to show success message before redirect
+          setTimeout(() => {
+            router.push('/cart?orderSuccess=true');
+          }, 1500);
         } else {
           setStatus('failed');
           setMessage('Payment failed or cancelled.');
@@ -54,7 +63,7 @@ export default function ReturnClient() {
     };
 
     checkStatus();
-  }, [params]);
+  }, [params, clearCart, router]);
 
   return (
     <main className="max-w-xl mx-auto px-4 py-12">
@@ -62,12 +71,23 @@ export default function ReturnClient() {
       <p className="mb-6">{message}</p>
 
       {status === 'success' && (
-        <a
-          href="/profile/orders"
-          className="inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition"
-        >
-          View your orders
-        </a>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Redirecting to your cart...</p>
+          <div className="flex gap-4">
+            <a
+              href="/cart?orderSuccess=true"
+              className="inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition"
+            >
+              Continue Shopping
+            </a>
+            <a
+              href="/profile/orders"
+              className="inline-block bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition"
+            >
+              View Orders
+            </a>
+          </div>
+        </div>
       )}
 
       {status === 'failed' && (

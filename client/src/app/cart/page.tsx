@@ -19,7 +19,14 @@ export default function CartPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    setOrderSuccess(params.get('orderSuccess') === 'true');
+    const hasOrderSuccess = params.get('orderSuccess') === 'true';
+    setOrderSuccess(hasOrderSuccess);
+    
+    // Clear the URL parameter after reading it to prevent it from showing again on refresh
+    if (hasOrderSuccess) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
   }, []);
 
   if (authLoading) {
