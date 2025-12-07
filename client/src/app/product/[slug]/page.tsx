@@ -80,7 +80,9 @@ export default function ProductDetailPage() {
     return null;
   }
 
-  const images = product.images.length > 0 ? product.images : [product.image];
+  // Combine main image with additional images array
+  // Main image should be first, followed by additional images
+  const images = [product.image, ...(product.images || [])].filter(Boolean);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
