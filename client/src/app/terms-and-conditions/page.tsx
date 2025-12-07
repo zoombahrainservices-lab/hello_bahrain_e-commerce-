@@ -4,7 +4,7 @@ export default function TermsAndConditionsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <h1 className="text-3xl font-bold mb-6">Terms &amp; Conditions — Hello One Bahrain</h1>
-      <p className="text-sm text-gray-500 mb-8">Last Updated: December 4, 2024</p>
+      <p className="text-sm text-gray-500 mb-8">Last Updated: December 4, 2025</p>
 
       <div className="space-y-6 text-gray-800 leading-relaxed">
         <p>
