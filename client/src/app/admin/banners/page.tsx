@@ -6,11 +6,18 @@ import { Banner } from '@/lib/types';
 import BannerPreview from '@/components/BannerPreview';
 import SingleImageUpload from '@/components/SingleImageUpload';
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export default function AdminBannersPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -38,6 +45,7 @@ export default function AdminBannersPage() {
 
   useEffect(() => {
     fetchBanners();
+    fetchCategories();
   }, []);
 
   const fetchBanners = async () => {
@@ -48,6 +56,18 @@ export default function AdminBannersPage() {
       console.error('Error fetching banners:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/api/categories');
+      if (response.data && Array.isArray(response.data)) {
+        setCategories(response.data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
     }
   };
 
@@ -472,14 +492,11 @@ export default function AdminBannersPage() {
                       <option value="">Select a category...</option>
                       <optgroup label="Categories">
                         <option value="/?category=All">All Products</option>
-                        <option value="/?category=T-Shirts">T-Shirts</option>
-                        <option value="/?category=Hoodies">Hoodies</option>
-                        <option value="/?category=Bags">Bags</option>
-                        <option value="/?category=Bottles">Bottles</option>
-                        <option value="/?category=Caps">Caps</option>
-                        <option value="/?category=Accessories">Accessories</option>
-                        <option value="/?category=Souvenirs">Souvenirs</option>
-                        <option value="/?category=Luxury Items">Luxury Items</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={`/?category=${encodeURIComponent(cat.name)}`}>
+                            {cat.name}
+                          </option>
+                        ))}
                       </optgroup>
                       <optgroup label="Other Pages">
                         <option value="/">Home</option>

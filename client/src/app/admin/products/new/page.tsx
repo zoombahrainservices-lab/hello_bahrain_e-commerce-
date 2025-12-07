@@ -1,23 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import ImageUpload from '@/components/ImageUpload';
 
-const categories = ['T-Shirts', 'Hoodies', 'Bags', 'Bottles', 'Caps', 'Accessories', 'Souvenirs', 'Luxury Items'];
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
     description: '',
     price: '',
-    category: categories[0],
+    category: '',
     tags: '',
     inStock: true,
     stockQuantity: '',
@@ -26,6 +32,29 @@ export default function NewProductPage() {
     isNew: false,
   });
   const [images, setImages] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const response = await api.get('/api/categories');
+      if (response.data && Array.isArray(response.data)) {
+        setCategories(response.data);
+        // Set default category to first one if available
+        if (response.data.length > 0 && !formData.category) {
+          setFormData((prev) => ({ ...prev, category: response.data[0].name }));
+        }
+      }
+    } catch (error: any) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -155,13 +184,20 @@ export default function NewProductPage() {
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                disabled={categoriesLoading}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
+                {categoriesLoading ? (
+                  <option>Loading categories...</option>
+                ) : categories.length === 0 ? (
+                  <option>No categories available</option>
+                ) : (
+                  categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>

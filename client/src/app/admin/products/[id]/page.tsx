@@ -6,7 +6,11 @@ import { api } from '@/lib/api';
 import { Product } from '@/lib/types';
 import ImageUpload from '@/components/ImageUpload';
 
-const categories = ['T-Shirts', 'Hoodies', 'Bags', 'Bottles', 'Caps', 'Accessories', 'Souvenirs', 'Luxury Items'];
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -14,13 +18,15 @@ export default function EditProductPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
     description: '',
     price: '',
-    category: categories[0],
+    category: '',
     tags: '',
     inStock: true,
     stockQuantity: '',
@@ -31,10 +37,26 @@ export default function EditProductPage() {
   const [images, setImages] = useState<string[]>([]);
 
   useEffect(() => {
+    fetchCategories();
     if (params?.id) {
       fetchProduct(params.id as string);
     }
   }, [params?.id]);
+
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const response = await api.get('/api/categories');
+      if (response.data && Array.isArray(response.data)) {
+        setCategories(response.data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   const fetchProduct = async (id: string) => {
     try {
@@ -59,7 +81,7 @@ export default function EditProductPage() {
           slug: product.slug || '',
           description: product.description || '',
           price: product.price?.toString() || '0',
-          category: product.category || categories[0],
+          category: product.category || '',
           tags: Array.isArray(product.tags) ? product.tags.join(', ') : (product.tags || ''),
           inStock: product.inStock !== undefined ? product.inStock : (product.in_stock !== undefined ? product.in_stock : true),
           stockQuantity: product.stockQuantity?.toString() || (product.stock_quantity?.toString() || '0'),
@@ -206,13 +228,20 @@ export default function EditProductPage() {
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                disabled={categoriesLoading}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
+                {categoriesLoading ? (
+                  <option>Loading categories...</option>
+                ) : categories.length === 0 ? (
+                  <option>No categories available</option>
+                ) : (
+                  categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>
