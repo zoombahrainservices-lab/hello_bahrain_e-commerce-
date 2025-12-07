@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
+import { api } from '@/lib/api';
 
 type Status = 'loading' | 'success' | 'failed';
 
@@ -43,6 +44,31 @@ export default function ReturnClient() {
           (lastTxn.result === 'SUCCESS' || lastTxn.response?.acquirerCode === '00');
 
         if (isSuccess) {
+          // Create the order using stored order data
+          try {
+            const pendingOrderData = typeof window !== 'undefined' 
+              ? window.localStorage.getItem('pending_order_data') 
+              : null;
+
+            if (pendingOrderData) {
+              const orderData = JSON.parse(pendingOrderData);
+              // Create order with payment_status='paid' since payment was successful
+              await api.post('/api/orders', {
+                ...orderData,
+                paymentStatus: 'paid',
+              });
+              
+              // Remove pending order data and shipping data from localStorage
+              if (typeof window !== 'undefined') {
+                window.localStorage.removeItem('pending_order_data');
+                window.localStorage.removeItem('hb_shipping_address');
+              }
+            }
+          } catch (orderErr: any) {
+            console.error('Error creating order after payment:', orderErr);
+            // Don't fail the whole flow if order creation fails - payment was successful
+          }
+
           setStatus('success');
           setMessage('Payment successful! Thank you for shopping with HelloOneBahrain.');
           // Clear cart and redirect to cart page with success message
@@ -54,11 +80,19 @@ export default function ReturnClient() {
         } else {
           setStatus('failed');
           setMessage('Payment failed or cancelled.');
+          // Remove pending order data if payment failed
+          if (typeof window !== 'undefined') {
+            window.localStorage.removeItem('pending_order_data');
+          }
         }
       } catch (err) {
         console.error(err);
         setStatus('failed');
         setMessage('Error verifying payment.');
+        // Remove pending order data on error
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem('pending_order_data');
+        }
       }
     };
 

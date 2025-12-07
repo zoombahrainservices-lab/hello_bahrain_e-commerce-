@@ -106,6 +106,25 @@ export default function PaymentPage() {
         return;
       }
 
+      if (!shipping) {
+        setError('Shipping address is required');
+        return;
+      }
+
+      // Store order data in localStorage before payment (will be used to create order after payment success)
+      const orderData = {
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+        shippingAddress: shipping,
+        paymentMethod: paymentMethod,
+      };
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('pending_order_data', JSON.stringify(orderData));
+      }
+
       const orderId = `HELLOONE-${Date.now()}`;
 
       const response = await api.post('/api/eazypay/session', {

@@ -16,7 +16,7 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const { items, shippingAddress } = req.body;
+    const { items, shippingAddress, paymentStatus } = req.body;
 
     // Validation
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -64,7 +64,7 @@ router.post('/', async (req: Request, res: Response) => {
         user_id: req.user.id,
         total,
         status: 'pending',
-        payment_status: 'unpaid',
+        payment_status: paymentStatus === 'paid' ? 'paid' : 'unpaid',
         shipping_address: shippingAddress,
       })
       .select()
