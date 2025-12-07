@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { api } from '@/lib/api';
 import { Order } from '@/lib/types';
+import { formatPrice } from '@/lib/currency';
 
 export default function OrdersClient() {
   const { user, loading: authLoading } = useAuth();
+  const { language } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -108,7 +111,7 @@ export default function OrdersClient() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total</p>
-                  <p className="font-bold text-lg">${order.total.toFixed(2)}</p>
+                  <p className="font-bold text-lg">{formatPrice(order.total, language === 'ar' ? 'ar-BH' : 'en-BH')}</p>
                 </div>
                 <div>
                   <span
@@ -130,7 +133,7 @@ export default function OrdersClient() {
                         {item.name} x {item.quantity}
                       </span>
                       <span className="font-medium">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        {formatPrice(item.price * item.quantity, language === 'ar' ? 'ar-BH' : 'en-BH')}
                       </span>
                     </div>
                   ))}
