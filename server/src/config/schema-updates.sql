@@ -67,3 +67,16 @@ INSERT INTO categories (name, slug) VALUES
   ('Souvenirs', 'souvenirs'),
   ('Luxury Items', 'luxury-items')
 ON CONFLICT (name) DO NOTHING;
+
+-- Contact Messages table for storing contact form submissions
+CREATE TABLE IF NOT EXISTS contact_messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create index for contact_messages
+CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at ON contact_messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_contact_messages_email ON contact_messages(email);
