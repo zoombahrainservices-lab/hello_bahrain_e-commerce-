@@ -76,7 +76,12 @@ export default function AdminBannersPage() {
 
     try {
       if (editingBanner) {
-        console.log('Updating banner:', editingBanner._id, formData);
+        console.log('=== BANNER UPDATE REQUEST ===');
+        console.log('Banner ID:', editingBanner._id);
+        console.log('Form Data:', JSON.stringify(formData, null, 2));
+        console.log('Form Data Keys:', Object.keys(formData));
+        console.log('============================');
+        
         const response = await api.put(`/api/admin/banners/${editingBanner._id}`, formData);
         console.log('Banner updated successfully:', response.data);
       } else {
