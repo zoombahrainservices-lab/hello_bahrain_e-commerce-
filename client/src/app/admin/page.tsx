@@ -25,8 +25,9 @@ export default function AdminDashboard() {
     try {
       const response = await api.get('/api/admin/summary');
       setSummary(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching summary:', error);
+      console.error('Error details:', error?.response?.data);
     } finally {
       setLoading(false);
     }
@@ -41,7 +42,30 @@ export default function AdminDashboard() {
   }
 
   if (!summary) {
-    return <div>Error loading dashboard</div>;
+    return (
+      <div className="text-center py-16">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+          <h3 className="text-red-800 font-semibold mb-2">Error Loading Dashboard</h3>
+          <p className="text-red-600 text-sm mb-4">
+            Unable to load dashboard data. Please check:
+          </p>
+          <ul className="text-red-600 text-sm text-left list-disc list-inside mb-4">
+            <li>Environment variables are set correctly</li>
+            <li>Database connection is working</li>
+            <li>You have admin permissions</li>
+          </ul>
+          <button
+            onClick={() => {
+              setLoading(true);
+              fetchSummary();
+            }}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

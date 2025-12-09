@@ -23,3 +23,15 @@ export function formatPrice(amount: number, locale: string = 'en-BH'): string {
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
