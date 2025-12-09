@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 
 function OrderSuccessClient() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { clearCart } = useCart();
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    
     // Get order ID from URL if available
     const id = searchParams.get('orderId');
     if (id) {
@@ -25,6 +27,10 @@ function OrderSuccessClient() {
       // Don't block the page if cart clearing fails
     }
   }, [searchParams, clearCart]);
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 relative z-10">
@@ -65,53 +71,57 @@ function OrderSuccessClient() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a
-            href="/"
+          <button
+            type="button"
             className="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition cursor-pointer"
-            onClick={(e) => {
-              e.preventDefault();
-              router.push('/');
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.href = '/';
+              }
             }}
           >
             Continue Shopping
-          </a>
-          <a
-            href="/profile/orders"
+          </button>
+          <button
+            type="button"
             className="inline-block bg-gray-200 text-gray-800 px-8 py-3 rounded-lg font-semibold hover:bg-gray-300 transition cursor-pointer"
-            onClick={(e) => {
-              e.preventDefault();
-              router.push('/profile/orders');
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.href = '/profile/orders';
+              }
             }}
           >
             View My Orders
-          </a>
+          </button>
         </div>
 
         {/* Additional Info */}
         <div className="mt-8 pt-8 border-t border-gray-200">
           <p className="text-sm text-gray-600">
             Need help?{' '}
-            <a
-              href="/contact"
-              className="text-primary-600 hover:text-primary-700 underline cursor-pointer"
-              onClick={(e) => {
-                e.preventDefault();
-                router.push('/contact');
+            <button
+              type="button"
+              className="text-primary-600 hover:text-primary-700 underline cursor-pointer bg-transparent border-none p-0"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.location.href = '/contact';
+                }
               }}
             >
               Contact us
-            </a>
+            </button>
             {' '}or check your{' '}
-            <a
-              href="/profile/orders"
-              className="text-primary-600 hover:text-primary-700 underline cursor-pointer"
-              onClick={(e) => {
-                e.preventDefault();
-                router.push('/profile/orders');
+            <button
+              type="button"
+              className="text-primary-600 hover:text-primary-700 underline cursor-pointer bg-transparent border-none p-0"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.location.href = '/profile/orders';
+                }
               }}
             >
               order status
-            </a>
+            </button>
             .
           </p>
         </div>
