@@ -105,9 +105,9 @@ export default function AdminCategoriesPage() {
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Categories</h1>
+    <div className="w-full overflow-x-hidden">
+      <div className="flex justify-between items-center mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">Categories</h1>
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
