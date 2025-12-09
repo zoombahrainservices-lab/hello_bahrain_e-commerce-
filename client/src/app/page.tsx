@@ -7,10 +7,6 @@ import { Product, Banner } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
 import BannerCarousel from '@/components/BannerCarousel';
 
-// Force dynamic rendering - no static generation
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 interface Category {
   id: string;
   name: string;
