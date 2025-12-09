@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 
 function OrderSuccessClient() {
@@ -19,12 +18,17 @@ function OrderSuccessClient() {
     }
 
     // Clear cart on success page load (only once)
-    clearCart();
+    try {
+      clearCart();
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      // Don't block the page if cart clearing fails
+    }
   }, [searchParams, clearCart]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg p-8 text-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 relative z-10">
+      <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg p-8 text-center relative z-10">
         {/* Success Icon */}
         <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
           <svg
@@ -61,31 +65,53 @@ function OrderSuccessClient() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
+          <a
             href="/"
-            className="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition"
+            className="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault();
+              router.push('/');
+            }}
           >
             Continue Shopping
-          </Link>
-          <Link
+          </a>
+          <a
             href="/profile/orders"
-            className="inline-block bg-gray-200 text-gray-800 px-8 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
+            className="inline-block bg-gray-200 text-gray-800 px-8 py-3 rounded-lg font-semibold hover:bg-gray-300 transition cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault();
+              router.push('/profile/orders');
+            }}
           >
             View My Orders
-          </Link>
+          </a>
         </div>
 
         {/* Additional Info */}
         <div className="mt-8 pt-8 border-t border-gray-200">
           <p className="text-sm text-gray-600">
             Need help?{' '}
-            <Link href="/contact" className="text-primary-600 hover:text-primary-700 underline">
+            <a
+              href="/contact"
+              className="text-primary-600 hover:text-primary-700 underline cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                router.push('/contact');
+              }}
+            >
               Contact us
-            </Link>
+            </a>
             {' '}or check your{' '}
-            <Link href="/profile/orders" className="text-primary-600 hover:text-primary-700 underline">
+            <a
+              href="/profile/orders"
+              className="text-primary-600 hover:text-primary-700 underline cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                router.push('/profile/orders');
+              }}
+            >
               order status
-            </Link>
+            </a>
             .
           </p>
         </div>
