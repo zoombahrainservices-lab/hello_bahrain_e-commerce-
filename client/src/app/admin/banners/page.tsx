@@ -127,13 +127,20 @@ export default function AdminBannersPage() {
         const errorData = error.response.data;
         errorMessage = errorData.message || errorData.error || errorMessage;
         if (errorData.details) {
-          errorMessage += `\n\nDetails: ${errorData.details}`;
+          errorMessage += `\nDetails: ${errorData.details}`;
+        }
+        if (errorData.hint) {
+          errorMessage += `\nHint: ${errorData.hint}`;
+        }
+        if (errorData.code) {
+          errorMessage += `\nCode: ${errorData.code}`;
         }
       } else if (error?.message) {
         errorMessage = error.message;
       }
       
-      alert(`Error: ${errorMessage}`);
+      console.error('Full error response:', error?.response?.data);
+      alert(`Error: ${errorMessage}\n\nCheck console for full details.`);
     }
   };
 

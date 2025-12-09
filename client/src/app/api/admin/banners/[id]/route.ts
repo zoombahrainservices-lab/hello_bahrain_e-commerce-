@@ -144,6 +144,12 @@ export async function PUT(
 
     if (error) {
       console.error('Supabase update error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error details:', error.details);
+      console.error('Error hint:', error.hint);
+      console.error('Update data that failed:', JSON.stringify(updateData, null, 2));
+      
       if (error.code === 'PGRST116') {
         return NextResponse.json(
           { message: 'Banner not found' },
@@ -151,7 +157,13 @@ export async function PUT(
         );
       }
       return NextResponse.json(
-        { message: 'Error updating banner', error: error.message, code: error.code },
+        { 
+          message: 'Error updating banner', 
+          error: error.message, 
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        },
         { status: 500 }
       );
     }
@@ -212,8 +224,21 @@ export async function PUT(
     return NextResponse.json(response);
   } catch (error: any) {
     console.error('Error updating banner:', error);
+    console.error('Error stack:', error?.stack);
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+    });
     return NextResponse.json(
-      { message: 'Error updating banner', error: error?.message },
+      { 
+        message: 'Error updating banner', 
+        error: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+      },
       { status: 500 }
     );
   }
