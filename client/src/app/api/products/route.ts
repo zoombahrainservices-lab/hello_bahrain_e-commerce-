@@ -54,9 +54,22 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error fetching products:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+    });
     const errorMessage = error?.message || 'Error fetching products';
+    const errorDetails = {
+      message: errorMessage,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
+    };
     return NextResponse.json(
-      { message: errorMessage, error: error?.stack },
+      { message: errorMessage, error: errorDetails },
       { status: 500 }
     );
   }
