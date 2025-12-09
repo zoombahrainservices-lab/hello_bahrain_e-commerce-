@@ -115,8 +115,25 @@ export default function AdminBannersPage() {
       alert(editingBanner ? 'Banner updated successfully!' : 'Banner created successfully!');
     } catch (error: any) {
       console.error('Error saving banner:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save banner';
-      alert(`Error: ${errorMessage}`);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        stack: error?.stack,
+      });
+      
+      let errorMessage = 'Failed to save banner';
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        errorMessage = errorData.message || errorData.error || errorMessage;
+        if (errorData.details) {
+          errorMessage += `\n\nDetails: ${errorData.details}`;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(`Error: ${errorMessage}\n\nPlease check the browser console for more details.`);
     }
   };
 
