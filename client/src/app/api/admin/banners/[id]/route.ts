@@ -19,6 +19,13 @@ export async function PUT(
     const { id } = params;
     const bannerData = await request.json();
 
+    // First, get current banner to preserve cta_link if not provided
+    const { data: currentBanner } = await getSupabase()
+      .from('banners')
+      .select('cta_link')
+      .eq('id', id)
+      .single();
+
     const updateData: any = {};
     if (bannerData.title !== undefined) updateData.title = bannerData.title;
     if (bannerData.subtitle !== undefined) updateData.subtitle = bannerData.subtitle;
@@ -30,27 +37,37 @@ export async function PUT(
       updateData.image = await uploadBase64Image(bannerData.image, 'banners');
     }
 
-    // Handle alignment data in cta_link
-    if (bannerData.ctaLink !== undefined) {
-      const alignmentData = {
-        textAlign: bannerData.textAlign || 'left',
-        textVertical: bannerData.textVertical || 'middle',
-        buttonAlign: bannerData.buttonAlign || 'left',
-        buttonVertical: bannerData.buttonVertical || 'middle',
-        displayOrder: bannerData.displayOrder || 0,
-        titleColor: bannerData.titleColor || '#ffffff',
-        subtitleColor: bannerData.subtitleColor || '#e5e7eb',
-        buttonBgColor: bannerData.buttonBgColor || '#ffffff',
-        buttonTextColor: bannerData.buttonTextColor || '#111827',
-        titleSize: bannerData.titleSize || 'lg',
-        subtitleSize: bannerData.subtitleSize || 'md',
-        titleBold: bannerData.titleBold ?? true,
-        titleItalic: bannerData.titleItalic ?? false,
-        subtitleBold: bannerData.subtitleBold ?? false,
-        subtitleItalic: bannerData.subtitleItalic ?? false,
-      };
-      updateData.cta_link = `${bannerData.ctaLink}|||${JSON.stringify(alignmentData)}`;
+    // Always update alignment data in cta_link (even if ctaLink itself hasn't changed)
+    // Get the current link from existing banner or use the new one
+    let currentLink = bannerData.ctaLink;
+    if (currentLink === undefined && currentBanner?.cta_link) {
+      // Extract current link from existing cta_link (remove alignment data)
+      const linkParts = currentBanner.cta_link.split('|||');
+      currentLink = linkParts[0];
     }
+    currentLink = currentLink || '/';
+
+    // Build alignment data from form data
+    const alignmentData = {
+      textAlign: bannerData.textAlign !== undefined ? bannerData.textAlign : 'left',
+      textVertical: bannerData.textVertical !== undefined ? bannerData.textVertical : 'middle',
+      buttonAlign: bannerData.buttonAlign !== undefined ? bannerData.buttonAlign : 'left',
+      buttonVertical: bannerData.buttonVertical !== undefined ? bannerData.buttonVertical : 'middle',
+      displayOrder: bannerData.displayOrder !== undefined ? bannerData.displayOrder : 0,
+      titleColor: bannerData.titleColor !== undefined ? bannerData.titleColor : '#ffffff',
+      subtitleColor: bannerData.subtitleColor !== undefined ? bannerData.subtitleColor : '#e5e7eb',
+      buttonBgColor: bannerData.buttonBgColor !== undefined ? bannerData.buttonBgColor : '#ffffff',
+      buttonTextColor: bannerData.buttonTextColor !== undefined ? bannerData.buttonTextColor : '#111827',
+      titleSize: bannerData.titleSize !== undefined ? bannerData.titleSize : 'lg',
+      subtitleSize: bannerData.subtitleSize !== undefined ? bannerData.subtitleSize : 'md',
+      titleBold: bannerData.titleBold !== undefined ? bannerData.titleBold : true,
+      titleItalic: bannerData.titleItalic !== undefined ? bannerData.titleItalic : false,
+      subtitleBold: bannerData.subtitleBold !== undefined ? bannerData.subtitleBold : false,
+      subtitleItalic: bannerData.subtitleItalic !== undefined ? bannerData.subtitleItalic : false,
+    };
+    
+    // Always update cta_link with alignment data
+    updateData.cta_link = `${currentLink}|||${JSON.stringify(alignmentData)}`;
 
     if (bannerData.displayOrder !== undefined) {
       updateData.display_order = bannerData.displayOrder;

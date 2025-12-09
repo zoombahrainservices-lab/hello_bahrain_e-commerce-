@@ -158,9 +158,29 @@ export default function AdminBannersPage() {
 
   const handleToggleActive = async (banner: Banner) => {
     try {
+      // When toggling active, preserve all alignment data
       await api.put(`/api/admin/banners/${banner._id}`, {
-        ...banner,
+        title: banner.title,
+        subtitle: banner.subtitle,
+        ctaLabel: banner.ctaLabel,
+        ctaLink: banner.ctaLink,
+        image: banner.image,
         active: !banner.active,
+        displayOrder: banner.displayOrder || 0,
+        titleColor: banner.titleColor || '#FFFFFF',
+        titleSize: banner.titleSize || 'lg',
+        titleBold: banner.titleBold !== undefined ? banner.titleBold : true,
+        titleItalic: banner.titleItalic || false,
+        subtitleColor: banner.subtitleColor || '#FFFFFF',
+        subtitleSize: banner.subtitleSize || 'md',
+        subtitleBold: banner.subtitleBold || false,
+        subtitleItalic: banner.subtitleItalic || false,
+        buttonBgColor: banner.buttonBgColor || '#C5A572',
+        buttonTextColor: banner.buttonTextColor || '#FFFFFF',
+        textAlign: banner.textAlign || 'left',
+        textVertical: banner.textVertical || 'middle',
+        buttonAlign: banner.buttonAlign || 'left',
+        buttonVertical: banner.buttonVertical || 'middle',
       });
       setBanners(
         banners.map((b) =>
