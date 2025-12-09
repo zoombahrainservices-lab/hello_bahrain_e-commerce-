@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState, useCallback } from 'react';
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Product, Banner } from '@/lib/types';
@@ -220,6 +220,7 @@ function MerchPageContent() {
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState(''); // Local search term for live updates
   const [isInitialLoad, setIsInitialLoad] = useState(true); // Track if this is the first load
+  const scrollPositionRef = useRef<number>(0); // Store scroll position to prevent scroll to top
 
   const category = searchParams?.get('category') || 'All';
   const sort = searchParams?.get('sort') || 'newest';
@@ -264,23 +265,53 @@ function MerchPageContent() {
     }
   }, []);
 
+  const fetchCategories = useCallback(async () => {
+    try {
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      console.log('🔄 Fetching categories with timestamp:', timestamp);
+      const response = await api.get('/api/categories', {
+        params: { _t: timestamp },
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
+      console.log('✅ Categories fetched:', response.data);
+      if (response.data && Array.isArray(response.data)) {
+        console.log('📋 Setting categories state with', response.data.length, 'categories');
+        // Create new array to ensure React detects the change
+        setCategories([...response.data]);
+      } else {
+        console.warn('⚠️ Invalid categories data:', response.data);
+        setCategories([]);
+      }
+    } catch (error: any) {
+      console.error('❌ Error fetching categories:', error);
+      // Fallback to empty array if categories fail to load
+      setCategories([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchBanners();
     fetchCategories();
-  }, [fetchBanners]);
+  }, [fetchBanners, fetchCategories]);
 
-  // Refetch banners when page becomes visible (user returns from admin panel)
+  // Refetch banners and categories when page becomes visible (user returns from admin panel)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        // Page became visible, refetch banners to get latest updates
+        // Page became visible, refetch banners and categories to get latest updates
         fetchBanners();
+        fetchCategories();
       }
     };
 
     const handleFocus = () => {
-      // Window gained focus, refetch banners
+      // Window gained focus, refetch banners and categories
       fetchBanners();
+      fetchCategories();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -290,22 +321,35 @@ function MerchPageContent() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [fetchBanners]);
+  }, [fetchBanners, fetchCategories]);
 
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('/api/categories');
-      if (response.data && Array.isArray(response.data)) {
-        setCategories(response.data);
-      } else {
-        setCategories([]);
-      }
-    } catch (error: any) {
-      console.error('Error fetching categories:', error);
-      // Fallback to empty array if categories fail to load
-      setCategories([]);
+  // Prevent scroll to top when URL params change (for category/sort filtering)
+  useEffect(() => {
+    // Restore scroll position when searchParams change (but only if we have a saved position)
+    if (typeof window !== 'undefined' && scrollPositionRef.current > 0) {
+      const savedScroll = scrollPositionRef.current;
+      // Use multiple attempts to ensure scroll is restored
+      const restoreScroll = () => {
+        window.scrollTo({
+          top: savedScroll,
+          behavior: 'instant' as ScrollBehavior,
+        });
+      };
+      
+      // Try immediately
+      restoreScroll();
+      
+      // Try after DOM updates
+      requestAnimationFrame(() => {
+        requestAnimationFrame(restoreScroll);
+      });
+      
+      // Try after short delays
+      setTimeout(restoreScroll, 0);
+      setTimeout(restoreScroll, 10);
+      setTimeout(restoreScroll, 50);
     }
-  };
+  }, [searchParams]);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -384,7 +428,71 @@ function MerchPageContent() {
       setIsInitialLoad(false);
       setProducts([]);
     }
-    router.push(`/?${params.toString()}`);
+    
+    // Save current scroll position before navigation
+    if (typeof window !== 'undefined') {
+      scrollPositionRef.current = window.scrollY;
+    }
+    
+    const newUrl = `/?${params.toString()}`;
+    
+    // Update URL using history API first to prevent scroll
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(
+        { ...window.history.state, scroll: scrollPositionRef.current },
+        '',
+        newUrl
+      );
+    }
+    
+    // Prevent scroll by locking position before router update
+    if (typeof window !== 'undefined') {
+      // Lock scroll position immediately
+      window.scrollTo({
+        top: scrollPositionRef.current,
+        behavior: 'instant' as ScrollBehavior,
+      });
+      
+      // Add a scroll lock listener temporarily
+      const preventScroll = (e: Event) => {
+        e.preventDefault();
+        window.scrollTo({
+          top: scrollPositionRef.current,
+          behavior: 'instant' as ScrollBehavior,
+        });
+      };
+      
+      // Temporarily prevent scroll events
+      window.addEventListener('scroll', preventScroll, { passive: false, once: true });
+      
+      // Use router.replace to sync Next.js state
+      router.replace(newUrl);
+      
+      // Immediately restore scroll position after router update
+      const restoreScroll = () => {
+        window.scrollTo({
+          top: scrollPositionRef.current,
+          behavior: 'instant' as ScrollBehavior,
+        });
+      };
+      
+      // Try multiple times to ensure scroll is preserved
+      restoreScroll();
+      Promise.resolve().then(restoreScroll);
+      requestAnimationFrame(restoreScroll);
+      requestAnimationFrame(() => requestAnimationFrame(restoreScroll));
+      setTimeout(restoreScroll, 0);
+      setTimeout(restoreScroll, 10);
+      setTimeout(restoreScroll, 50);
+      setTimeout(restoreScroll, 100);
+      
+      // Remove scroll lock after a short delay
+      setTimeout(() => {
+        window.removeEventListener('scroll', preventScroll);
+      }, 200);
+    } else {
+      router.replace(newUrl);
+    }
   }, [searchParams, router, isInitialLoad]);
 
   // Debounced live search - updates products directly without URL changes
@@ -447,7 +555,7 @@ function MerchPageContent() {
             {/* Show fetched categories */}
             {categories.map((cat) => (
               <button
-                key={cat.id}
+                key={`${cat.id}-${cat.name}-${cat.slug}`}
                 onClick={() => updateParams('category', cat.name)}
                 className={`px-4 py-2 rounded-lg transition ${
                   category === cat.name

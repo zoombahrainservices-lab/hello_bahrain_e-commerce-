@@ -19,7 +19,14 @@ export async function GET(request: NextRequest) {
       slug: row.slug,
     }));
 
-    return NextResponse.json(categories);
+    // Add cache-busting headers to ensure fresh data
+    return NextResponse.json(categories, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   } catch (error: any) {
     console.error('Error fetching public categories:', error);
     console.error('Error details:', {
