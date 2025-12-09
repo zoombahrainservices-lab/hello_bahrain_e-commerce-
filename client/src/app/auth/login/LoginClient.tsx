@@ -69,8 +69,8 @@ export default function LoginClient() {
   };
 
   const handleGoogleLogin = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-    window.location.href = `${apiUrl}/api/auth/google`;
+    // Use relative path for Next.js API route
+    window.location.href = '/api/auth/google';
   };
 
   if (processingGoogleAuth) {
