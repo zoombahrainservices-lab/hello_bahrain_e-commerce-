@@ -20,11 +20,196 @@ const sortOptions = [
   { value: 'rating', label: 'Rating' },
 ];
 
+// Hardcoded products to show immediately during cold start (before API loads)
+const HARDCODED_PRODUCTS: Product[] = [
+  {
+    _id: 'hardcoded-1',
+    name: 'BIC Wheel Hub Pendent',
+    slug: 'bic-wheel-hub-pendent',
+    description: 'Premium wheel hub pendent for car enthusiasts.',
+    price: 5.50,
+    category: 'Accessories',
+    tags: ['pendent', 'car', 'accessories'],
+    image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500',
+    images: ['https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500'],
+    inStock: true,
+    stockQuantity: 50,
+    rating: 4.5,
+    isFeatured: false,
+    isNew: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: 'hardcoded-2',
+    name: '1:24 MCLAREN F1 MCL36 DIECAST',
+    slug: 'mclaren-f1-mcl36-diecast',
+    description: 'Detailed 1:24 scale diecast model of McLaren F1 MCL36.',
+    price: 22.00,
+    category: 'Models',
+    tags: ['diecast', 'mclaren', 'f1', 'model'],
+    image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500',
+    images: ['https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500'],
+    inStock: true,
+    stockQuantity: 30,
+    rating: 4.8,
+    isFeatured: true,
+    isNew: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: 'hardcoded-3',
+    name: '1:43 MERCEDES AMG-F1 W15 2024 SIGNATURE#44 HAMILTON',
+    slug: 'mercedes-amg-f1-w15-hamilton',
+    description: 'Limited edition 1:43 scale Mercedes AMG F1 W15 with Hamilton signature.',
+    price: 18.00,
+    category: 'Models',
+    tags: ['mercedes', 'f1', 'hamilton', 'diecast'],
+    image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500',
+    images: ['https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500'],
+    inStock: true,
+    stockQuantity: 25,
+    rating: 4.7,
+    isFeatured: true,
+    isNew: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: 'hardcoded-4',
+    name: 'BIC Glass Straw',
+    slug: 'bic-glass-straw',
+    description: 'Eco-friendly reusable glass straw.',
+    price: 3.00,
+    category: 'Accessories',
+    tags: ['straw', 'glass', 'eco-friendly'],
+    image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500',
+    images: ['https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500'],
+    inStock: true,
+    stockQuantity: 100,
+    rating: 4.2,
+    isFeatured: false,
+    isNew: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: 'hardcoded-5',
+    name: 'BIC Drinking Bottle',
+    slug: 'bic-drinking-bottle',
+    description: 'Premium reusable drinking bottle.',
+    price: 5.00,
+    category: 'Accessories',
+    tags: ['bottle', 'reusable', 'water'],
+    image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500',
+    images: ['https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500'],
+    inStock: true,
+    stockQuantity: 80,
+    rating: 4.4,
+    isFeatured: false,
+    isNew: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: 'hardcoded-6',
+    name: '1:43 ALFA ROMEO F1 TEAM ORLEN C42 #77 BOTTAS',
+    slug: 'alfa-romeo-f1-c42-bottas',
+    description: '1:43 scale Alfa Romeo F1 Team Orlen C42 diecast model #77 Bottas.',
+    price: 9.00,
+    category: 'Models',
+    tags: ['alfa-romeo', 'f1', 'bottas', 'diecast'],
+    image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500',
+    images: ['https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500'],
+    inStock: true,
+    stockQuantity: 40,
+    rating: 4.6,
+    isFeatured: false,
+    isNew: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: 'hardcoded-7',
+    name: '1:43 FERRARI SF-24 F1 #16 LECLERC',
+    slug: 'ferrari-sf-24-f1-leclerc',
+    description: '1:43 scale Ferrari SF-24 F1 diecast model #16 Leclerc.',
+    price: 9.00,
+    category: 'Models',
+    tags: ['ferrari', 'f1', 'leclerc', 'diecast'],
+    image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500',
+    images: ['https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=500'],
+    inStock: true,
+    stockQuantity: 35,
+    rating: 4.7,
+    isFeatured: true,
+    isNew: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: 'hardcoded-8',
+    name: 'MAPF1 RP DRIVER TEE-KIDS-WHITE',
+    slug: 'mapf1-rp-driver-tee-kids-white',
+    description: 'Kids white driver tee with MAPF1 RP design.',
+    price: 15.00,
+    category: 'T-Shirts',
+    tags: ['kids', 'tee', 'white', 'f1'],
+    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500',
+    images: ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500'],
+    inStock: true,
+    stockQuantity: 60,
+    rating: 4.5,
+    isFeatured: false,
+    isNew: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: 'hardcoded-9',
+    name: 'MAPF1 FW MENS LARGE LOGO TEE WHITE',
+    slug: 'mapf1-fw-mens-large-logo-tee-white',
+    description: 'Mens white tee with large MAPF1 FW logo.',
+    price: 20.00,
+    category: 'T-Shirts',
+    tags: ['mens', 'tee', 'white', 'logo'],
+    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500',
+    images: ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500'],
+    inStock: true,
+    stockQuantity: 70,
+    rating: 4.6,
+    isFeatured: true,
+    isNew: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: 'hardcoded-10',
+    name: 'MAPF1 FW MENS POLO TEAL',
+    slug: 'mapf1-fw-mens-polo-teal',
+    description: 'Mens teal polo shirt with MAPF1 FW branding.',
+    price: 25.00,
+    category: 'T-Shirts',
+    tags: ['mens', 'polo', 'teal', 'f1'],
+    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500',
+    images: ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500'],
+    inStock: true,
+    stockQuantity: 55,
+    rating: 4.5,
+    isFeatured: false,
+    isNew: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
 function MerchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [products, setProducts] = useState<Product[]>([]);
+  // Initialize with hardcoded products for instant display (cold start fix)
+  const [products, setProducts] = useState<Product[]>(HARDCODED_PRODUCTS);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +219,7 @@ function MerchPageContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState(''); // Local search term for live updates
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // Track if this is the first load
 
   const category = searchParams?.get('category') || 'All';
   const sort = searchParams?.get('sort') || 'newest';
@@ -106,12 +292,34 @@ function MerchPageContent() {
       }
 
       const response = await api.get('/api/products', { params });
-      setProducts(response.data.items || []);
+      const fetchedProducts = response.data.items || [];
+      
+      // Check if user is filtering/searching (not just initial load)
+      const isFiltering = searchTerm || category !== 'All';
+      
+      // Replace hardcoded products with real data once API responds
+      if (fetchedProducts.length > 0) {
+        setProducts(fetchedProducts);
+        setIsInitialLoad(false);
+      } else {
+        // Clear products if user is filtering/searching, or if it's not the initial load
+        if (!isInitialLoad || isFiltering) {
+          setProducts([]);
+          setIsInitialLoad(false);
+        }
+        // If it's initial load with no filters, keep hardcoded products
+      }
+      
       setTotal(response.data.total || 0);
       setTotalPages(response.data.totalPages || 1);
     } catch (error: any) {
       console.error('Error fetching products:', error);
-      setProducts([]);
+      
+      // On error, only clear products if it's not the initial load
+      // This way hardcoded products stay visible during cold start
+      if (!isInitialLoad) {
+        setProducts([]);
+      }
       
       // Set user-friendly error message
       if (error.code === 'ERR_NETWORK') {
@@ -126,7 +334,7 @@ function MerchPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [category, sort, searchTerm, page]);
+  }, [category, sort, searchTerm, page, isInitialLoad]);
 
   const updateParams = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams?.toString());
@@ -136,19 +344,30 @@ function MerchPageContent() {
       params.delete(key);
     }
     setPage(1); // Reset to page 1 when filtering
+    // Clear hardcoded products when user filters
+    if (isInitialLoad) {
+      setIsInitialLoad(false);
+      setProducts([]);
+    }
     router.push(`/?${params.toString()}`);
-  }, [searchParams, router]);
+  }, [searchParams, router, isInitialLoad]);
 
   // Debounced live search - updates products directly without URL changes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
+      const trimmedSearch = searchInput.trim();
       // Update local search term for live product filtering
-      setSearchTerm(searchInput.trim());
+      setSearchTerm(trimmedSearch);
       setPage(1); // Reset to page 1 when search changes
+      // Clear hardcoded products when user starts searching
+      if (trimmedSearch && isInitialLoad) {
+        setIsInitialLoad(false);
+        setProducts([]);
+      }
     }, 300); // Wait 300ms after user stops typing
 
     return () => clearTimeout(timeoutId);
-  }, [searchInput]);
+  }, [searchInput, isInitialLoad]);
 
   // Fetch products when filters change (including live search term)
   useEffect(() => {
