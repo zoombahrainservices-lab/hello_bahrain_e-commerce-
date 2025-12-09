@@ -17,8 +17,9 @@ export async function GET(request: NextRequest) {
     // Transform banners to camelCase for frontend
     const transformedBanners = (data || []).map((banner: any) => {
       // Extract alignment data from cta_link if it exists
-      const linkParts = banner.cta_link.split('|||');
-      const actualLink = linkParts[0];
+      const ctaLink = banner.cta_link || '';
+      const linkParts = ctaLink.split('|||');
+      const actualLink = linkParts[0] || '';
       let alignmentData: any = {
         textAlign: 'left',
         textVertical: 'middle',
