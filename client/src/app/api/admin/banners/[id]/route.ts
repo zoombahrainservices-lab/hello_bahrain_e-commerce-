@@ -4,6 +4,8 @@ import { getSupabase } from '@/lib/db';
 import { uploadBase64Image } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0; // Never cache
+export const runtime = 'nodejs'; // Use Node.js runtime
 
 // PUT /api/admin/banners/:id - Update banner
 export async function PUT(
@@ -112,6 +114,7 @@ export async function PUT(
     };
     
     // Always update cta_link with alignment data
+    // Note: displayOrder is stored in alignmentData, not as a separate column
     try {
       const alignmentJson = JSON.stringify(alignmentData);
       updateData.cta_link = `${currentLink}|||${alignmentJson}`;
@@ -121,8 +124,14 @@ export async function PUT(
       updateData.cta_link = currentLink;
     }
 
-    if (bannerData.displayOrder !== undefined) {
-      updateData.display_order = Number(bannerData.displayOrder) || 0;
+    // Note: display_order column doesn't exist in database
+    // displayOrder is stored in alignmentData JSON within cta_link
+    // Do NOT try to update display_order as a separate column
+    
+    // Explicitly remove display_order if it somehow got into updateData (defensive programming)
+    if ('display_order' in updateData) {
+      console.warn('⚠️ display_order found in updateData - removing it (it should be in cta_link JSON)');
+      delete updateData.display_order;
     }
 
     // Make sure we have something to update
@@ -134,6 +143,7 @@ export async function PUT(
     }
 
     console.log('Updating banner with data:', JSON.stringify(updateData, null, 2));
+    console.log('Update data keys:', Object.keys(updateData));
 
     const { data, error } = await getSupabase()
       .from('banners')
