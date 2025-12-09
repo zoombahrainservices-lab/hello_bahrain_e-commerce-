@@ -7,11 +7,17 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     // Check environment variables
+    const supabaseUrl = process.env.SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+    
     const envCheck = {
-      hasSupabaseUrl: !!process.env.SUPABASE_URL,
-      hasSupabaseKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY),
+      hasSupabaseUrl: !!supabaseUrl,
+      hasSupabaseKey: !!supabaseKey,
       hasJwtSecret: !!process.env.JWT_SECRET,
-      supabaseUrl: process.env.SUPABASE_URL ? `${process.env.SUPABASE_URL.substring(0, 20)}...` : 'MISSING',
+      supabaseUrl: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'MISSING',
+      supabaseUrlValid: supabaseUrl.startsWith('https://') && supabaseUrl.includes('.supabase.co'),
+      supabaseKeyLength: supabaseKey.length,
+      supabaseKeyStartsWith: supabaseKey ? `${supabaseKey.substring(0, 10)}...` : 'MISSING',
     };
 
     // Try to connect to Supabase
@@ -22,6 +28,18 @@ export async function GET() {
     };
 
     try {
+      // First, validate the URL format
+      if (!supabaseUrl || !supabaseUrl.startsWith('https://') || !supabaseUrl.includes('.supabase.co')) {
+        dbCheck.error = `Invalid Supabase URL format. Expected: https://xxxxx.supabase.co, Got: ${supabaseUrl.substring(0, 50)}`;
+        return NextResponse.json({
+          status: 'error',
+          timestamp: new Date().toISOString(),
+          environment: envCheck,
+          database: dbCheck,
+          message: 'Invalid Supabase URL configuration',
+        });
+      }
+
       const supabase = getSupabase();
       
       // Try to query a simple table to verify connection
@@ -31,7 +49,10 @@ export async function GET() {
         .limit(1);
 
       if (usersError) {
-        dbCheck.error = usersError.message;
+        dbCheck.error = `${usersError.message} (Code: ${usersError.code || 'N/A'})`;
+        if (usersError.code === 'PGRST116') {
+          dbCheck.error += ' - Table does not exist. Run schema.sql in Supabase.';
+        }
       } else {
         dbCheck.connected = true;
       }
@@ -42,10 +63,15 @@ export async function GET() {
         const { error } = await supabase.from(table).select('*').limit(0);
         if (!error) {
           dbCheck.tables.push(table);
+        } else if (error.code === 'PGRST116') {
+          // Table doesn't exist - this is expected if schema not run
         }
       }
     } catch (err: any) {
-      dbCheck.error = err.message || 'Unknown error';
+      dbCheck.error = `${err.message || 'Unknown error'} (Type: ${err.constructor?.name || 'Error'})`;
+      if (err.message?.includes('fetch failed')) {
+        dbCheck.error += ' - Cannot reach Supabase. Check URL and network.';
+      }
     }
 
     return NextResponse.json({
