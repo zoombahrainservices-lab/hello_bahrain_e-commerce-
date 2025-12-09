@@ -76,9 +76,13 @@ export default function AdminBannersPage() {
 
     try {
       if (editingBanner) {
-        await api.put(`/api/admin/banners/${editingBanner._id}`, formData);
+        console.log('Updating banner:', editingBanner._id, formData);
+        const response = await api.put(`/api/admin/banners/${editingBanner._id}`, formData);
+        console.log('Banner updated successfully:', response.data);
       } else {
-        await api.post('/api/admin/banners', formData);
+        console.log('Creating new banner:', formData);
+        const response = await api.post('/api/admin/banners', formData);
+        console.log('Banner created successfully:', response.data);
       }
 
       // Reset form
@@ -107,39 +111,49 @@ export default function AdminBannersPage() {
       });
       setShowForm(false);
       setEditingBanner(null);
-      fetchBanners();
-    } catch (error) {
+      await fetchBanners();
+      alert(editingBanner ? 'Banner updated successfully!' : 'Banner created successfully!');
+    } catch (error: any) {
       console.error('Error saving banner:', error);
-      alert('Failed to save banner');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to save banner';
+      alert(`Error: ${errorMessage}`);
     }
   };
 
   const handleEdit = (banner: Banner) => {
+    console.log('Editing banner:', banner);
     setEditingBanner(banner);
     setFormData({
-      title: banner.title,
-      subtitle: banner.subtitle,
-      ctaLabel: banner.ctaLabel,
-      ctaLink: banner.ctaLink,
-      image: banner.image,
-      active: banner.active,
+      title: banner.title || '',
+      subtitle: banner.subtitle || '',
+      ctaLabel: banner.ctaLabel || '',
+      ctaLink: banner.ctaLink || '',
+      image: banner.image || '',
+      active: banner.active !== undefined ? banner.active : true,
       displayOrder: banner.displayOrder || 0,
       titleColor: banner.titleColor || '#FFFFFF',
-      titleSize: banner.titleSize || 'lg',
+      titleSize: (banner.titleSize || 'lg') as 'sm' | 'md' | 'lg',
       titleBold: banner.titleBold !== undefined ? banner.titleBold : true,
       titleItalic: banner.titleItalic || false,
       subtitleColor: banner.subtitleColor || '#FFFFFF',
-      subtitleSize: banner.subtitleSize || 'md',
+      subtitleSize: (banner.subtitleSize || 'md') as 'sm' | 'md' | 'lg',
       subtitleBold: banner.subtitleBold || false,
       subtitleItalic: banner.subtitleItalic || false,
       buttonBgColor: banner.buttonBgColor || '#C5A572',
       buttonTextColor: banner.buttonTextColor || '#FFFFFF',
-      textAlign: banner.textAlign || 'left',
-      textVertical: banner.textVertical || 'middle',
-      buttonAlign: banner.buttonAlign || 'left',
-      buttonVertical: banner.buttonVertical || 'middle',
+      textAlign: (banner.textAlign || 'left') as 'left' | 'center' | 'right',
+      textVertical: (banner.textVertical || 'middle') as 'top' | 'middle' | 'bottom',
+      buttonAlign: (banner.buttonAlign || 'left') as 'left' | 'center' | 'right',
+      buttonVertical: (banner.buttonVertical || 'middle') as 'top' | 'middle' | 'bottom',
     });
     setShowForm(true);
+    // Scroll to form after a brief delay to ensure it's rendered
+    setTimeout(() => {
+      const formElement = document.querySelector('[data-banner-form]');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
   const handleDelete = async (id: string) => {
@@ -256,7 +270,7 @@ export default function AdminBannersPage() {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8 overflow-x-hidden">
+        <div data-banner-form className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8 overflow-x-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             {/* Form Section */}
             <div>
