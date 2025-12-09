@@ -7,6 +7,10 @@ import { Product, Banner } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
 import BannerCarousel from '@/components/BannerCarousel';
 
+// Force dynamic rendering - no static generation
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface Category {
   id: string;
   name: string;
@@ -236,14 +240,20 @@ function MerchPageContent() {
 
   const fetchBanners = useCallback(async () => {
     try {
-      // Add timestamp to prevent caching
+      // Add timestamp and random number to prevent caching
       const timestamp = Date.now();
-      console.log('🔄 Fetching banners with timestamp:', timestamp);
+      const random = Math.random().toString(36).substring(7);
+      console.log('🔄 Fetching banners with timestamp:', timestamp, 'random:', random);
       const response = await api.get('/api/banners/active', {
-        params: { _t: timestamp },
+        params: { 
+          _t: timestamp,
+          _r: random,
+          _v: '1.0.0', // Version to bust cache
+        },
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
           'Pragma': 'no-cache',
+          'Expires': '0',
         },
       });
       console.log('✅ Banners fetched:', response.data);
@@ -267,14 +277,20 @@ function MerchPageContent() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      // Add timestamp to prevent caching
+      // Add timestamp and random number to prevent caching
       const timestamp = Date.now();
-      console.log('🔄 Fetching categories with timestamp:', timestamp);
+      const random = Math.random().toString(36).substring(7);
+      console.log('🔄 Fetching categories with timestamp:', timestamp, 'random:', random);
       const response = await api.get('/api/categories', {
-        params: { _t: timestamp },
+        params: { 
+          _t: timestamp,
+          _r: random,
+          _v: '1.0.0', // Version to bust cache
+        },
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
           'Pragma': 'no-cache',
+          'Expires': '0',
         },
       });
       console.log('✅ Categories fetched:', response.data);

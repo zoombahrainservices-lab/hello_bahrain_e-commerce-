@@ -2,17 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0; // Never cache
+export const runtime = 'nodejs'; // Use Node.js runtime (not edge)
 
 // GET /api/banners/active - Get active banners
 export async function GET(request: NextRequest) {
   try {
+    // Log request for debugging
+    console.log('🎨 [Banners API] Fetching active banners from database at', new Date().toISOString());
+    
     const { data, error } = await getSupabase()
       .from('banners')
       .select('*')
       .eq('active', true)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ [Banners API] Database error:', error);
+      throw error;
+    }
+    
+    console.log('✅ [Banners API] Fetched', data?.length || 0, 'active banners from database');
 
     if (!data || data.length === 0) {
       return NextResponse.json([], {

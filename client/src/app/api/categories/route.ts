@@ -2,16 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0; // Never cache
+export const runtime = 'nodejs'; // Use Node.js runtime (not edge)
 
 // GET /api/categories - public list of product categories
 export async function GET(request: NextRequest) {
   try {
+    // Log request for debugging
+    console.log('📋 [Categories API] Fetching categories from database at', new Date().toISOString());
+    
     const { data, error } = await getSupabase()
       .from('categories')
       .select('*')
       .order('name', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ [Categories API] Database error:', error);
+      throw error;
+    }
+    
+    console.log('✅ [Categories API] Fetched', data?.length || 0, 'categories from database');
 
     const categories = (data || []).map((row: any) => ({
       id: row.id,
