@@ -195,14 +195,21 @@ export default function PaymentPage() {
           paymentMethod,
         };
 
-        await api.post('/api/orders', orderData);
+        const response = await api.post('/api/orders', orderData);
+        const order = response.data;
 
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem(SHIPPING_STORAGE_KEY);
         }
 
         clearCart();
-        router.push('/cart?orderSuccess=true');
+        // Redirect to order success page with order ID if available
+        const orderId = order?.id || order?._id;
+        if (orderId) {
+          router.push(`/order/success?orderId=${orderId}`);
+        } else {
+          router.push('/order/success');
+        }
       } else {
         await startOnlinePayment();
       }

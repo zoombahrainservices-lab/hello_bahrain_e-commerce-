@@ -45,6 +45,7 @@ export default function ReturnClient() {
 
         if (isSuccess) {
           // Create the order using stored order data
+          let createdOrderId: string | null = null;
           try {
             const pendingOrderData = typeof window !== 'undefined' 
               ? window.localStorage.getItem('pending_order_data') 
@@ -53,10 +54,14 @@ export default function ReturnClient() {
             if (pendingOrderData) {
               const orderData = JSON.parse(pendingOrderData);
               // Create order with payment_status='paid' since payment was successful
-              await api.post('/api/orders', {
+              const orderResponse = await api.post('/api/orders', {
                 ...orderData,
                 paymentStatus: 'paid',
               });
+              
+              // Get order ID from response
+              const order = orderResponse.data;
+              createdOrderId = order?.id || order?._id || null;
               
               // Remove pending order data and shipping data from localStorage
               if (typeof window !== 'undefined') {
@@ -71,11 +76,15 @@ export default function ReturnClient() {
 
           setStatus('success');
           setMessage('Payment successful! Thank you for shopping with HelloOneBahrain.');
-          // Clear cart and redirect to cart page with success message
+          // Clear cart and redirect to order success page
           clearCart();
           // Small delay to show success message before redirect
           setTimeout(() => {
-            router.push('/cart?orderSuccess=true');
+            if (createdOrderId) {
+              router.push(`/order/success?orderId=${createdOrderId}`);
+            } else {
+              router.push('/order/success');
+            }
           }, 1500);
         } else {
           setStatus('failed');
@@ -106,13 +115,13 @@ export default function ReturnClient() {
 
       {status === 'success' && (
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">Redirecting to your cart...</p>
+          <p className="text-sm text-gray-600">Redirecting to order confirmation...</p>
           <div className="flex gap-4">
             <a
-              href="/cart?orderSuccess=true"
+              href="/order/success"
               className="inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition"
             >
-              Continue Shopping
+              Continue to Order Confirmation
             </a>
             <a
               href="/profile/orders"
