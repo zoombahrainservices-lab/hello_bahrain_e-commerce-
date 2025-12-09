@@ -218,9 +218,9 @@ export default function AdminBannersPage() {
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Banners</h1>
+    <div className="w-full">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">Banners</h1>
         <button
           onClick={() => {
             setShowForm(!showForm);
@@ -249,15 +249,15 @@ export default function AdminBannersPage() {
               buttonVertical: 'middle',
             });
           }}
-          className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition"
+          className="w-full sm:w-auto bg-primary-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-primary-700 transition text-sm sm:text-base"
         >
           {showForm ? 'Cancel' : 'Add Banner'}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8 overflow-x-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             {/* Form Section */}
             <div>
               <h2 className="text-xl font-bold mb-4">
@@ -615,51 +615,57 @@ export default function AdminBannersPage() {
 
       {/* Banners List */}
       <div className="space-y-4">
-        {banners.map((banner) => (
-          <div key={banner._id} className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-xl font-bold">{banner.title}</h3>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      banner.active
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {banner.active ? 'Active' : 'Inactive'}
-                  </span>
+        {banners.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+            <p className="text-gray-500">No banners found. Create your first banner!</p>
+          </div>
+        ) : (
+          banners.map((banner) => (
+            <div key={banner._id} className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex-1 w-full sm:w-auto min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                    <h3 className="text-lg sm:text-xl font-bold break-words">{banner.title}</h3>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                        banner.active
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {banner.active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 mb-2 break-words">{banner.subtitle}</p>
+                  <p className="text-sm text-gray-500 break-words">
+                    CTA: {banner.ctaLabel} → {banner.ctaLink}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-2 truncate">Image: {banner.image}</p>
                 </div>
-                <p className="text-gray-600 mb-2">{banner.subtitle}</p>
-                <p className="text-sm text-gray-500">
-                  CTA: {banner.ctaLabel} → {banner.ctaLink}
-                </p>
-                <p className="text-sm text-gray-400 mt-2 truncate">Image: {banner.image}</p>
-              </div>
-              <div className="flex space-x-2 ml-4">
-                <button
-                  onClick={() => handleToggleActive(banner)}
-                  className="text-red-600 hover:text-red-800 px-3 py-1"
-                >
-                  {banner.active ? 'Deactivate' : 'Activate'}
-                </button>
-                <button
-                  onClick={() => handleEdit(banner)}
-                  className="text-green-600 hover:text-green-800 px-3 py-1"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(banner._id)}
-                  className="text-red-600 hover:text-red-800 px-3 py-1"
-                >
-                  Delete
-                </button>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:ml-4">
+                  <button
+                    onClick={() => handleToggleActive(banner)}
+                    className="flex-1 sm:flex-none text-red-600 hover:text-red-800 px-3 py-2 sm:py-1 rounded-lg hover:bg-red-50 transition text-sm"
+                  >
+                    {banner.active ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button
+                    onClick={() => handleEdit(banner)}
+                    className="flex-1 sm:flex-none text-green-600 hover:text-green-800 px-3 py-2 sm:py-1 rounded-lg hover:bg-green-50 transition text-sm"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(banner._id)}
+                    className="flex-1 sm:flex-none text-red-600 hover:text-red-800 px-3 py-2 sm:py-1 rounded-lg hover:bg-red-50 transition text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

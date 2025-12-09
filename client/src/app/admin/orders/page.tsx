@@ -66,8 +66,8 @@ export default function AdminOrdersPage() {
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8">Orders</h1>
+    <div className="w-full overflow-x-hidden">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Orders</h1>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
