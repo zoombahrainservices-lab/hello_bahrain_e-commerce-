@@ -76,6 +76,15 @@ export default function ReturnClient() {
 
           setStatus('success');
           setMessage('Payment successful! Thank you for shopping with HelloOneBahrain.');
+          
+          // Store recent order info for redirect detection
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('hb_recent_order', JSON.stringify({
+              orderId: createdOrderId || null,
+              timestamp: Date.now(),
+            }));
+          }
+          
           // Clear cart and redirect to order success page
           clearCart();
           // Small delay to show success message before redirect

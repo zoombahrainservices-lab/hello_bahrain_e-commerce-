@@ -197,14 +197,19 @@ export default function PaymentPage() {
 
         const response = await api.post('/api/orders', orderData);
         const order = response.data;
+        const orderId = order?.id || order?._id;
 
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem(SHIPPING_STORAGE_KEY);
+          // Store recent order info for redirect detection
+          localStorage.setItem('hb_recent_order', JSON.stringify({
+            orderId: orderId || null,
+            timestamp: Date.now(),
+          }));
         }
 
         clearCart();
         // Redirect to order success page with order ID if available
-        const orderId = order?.id || order?._id;
         if (orderId) {
           router.push(`/order/success?orderId=${orderId}`);
         } else {

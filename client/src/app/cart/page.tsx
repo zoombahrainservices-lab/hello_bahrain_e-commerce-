@@ -9,27 +9,62 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+const RECENT_ORDER_KEY = 'hb_recent_order';
+
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotal, clearCart } = useCart();
   const { user, loading: authLoading } = useAuth();
   const { t, language } = useLanguage();
   const router = useRouter();
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [checkingOrder, setCheckingOrder] = useState(true);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
+    // Check URL parameter
     const params = new URLSearchParams(window.location.search);
     const hasOrderSuccess = params.get('orderSuccess') === 'true';
-    setOrderSuccess(hasOrderSuccess);
     
-    // Clear the URL parameter after reading it to prevent it from showing again on refresh
+    // Check localStorage for recent order (within last 30 seconds)
+    const recentOrderData = localStorage.getItem(RECENT_ORDER_KEY);
+    let hasRecentOrder = false;
+    
+    if (recentOrderData) {
+      try {
+        const { timestamp } = JSON.parse(recentOrderData);
+        const timeSinceOrder = Date.now() - timestamp;
+        // If order was placed within last 30 seconds, redirect to success page
+        if (timeSinceOrder < 30000) {
+          hasRecentOrder = true;
+          const orderId = JSON.parse(recentOrderData).orderId;
+          // Redirect to success page
+          if (orderId) {
+            router.replace(`/order/success?orderId=${orderId}`);
+          } else {
+            router.replace('/order/success');
+          }
+          return;
+        } else {
+          // Remove old order data
+          localStorage.removeItem(RECENT_ORDER_KEY);
+        }
+      } catch (e) {
+        localStorage.removeItem(RECENT_ORDER_KEY);
+      }
+    }
+    
+    setOrderSuccess(hasOrderSuccess || hasRecentOrder);
+    setCheckingOrder(false);
+    
+    // Clear the URL parameter after reading it
     if (hasOrderSuccess) {
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
-  }, []);
+  }, [router]);
 
-  if (authLoading) {
+  if (authLoading || checkingOrder) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
