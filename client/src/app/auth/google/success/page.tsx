@@ -7,27 +7,20 @@ import { useAuth } from '@/contexts/AuthContext';
 function GoogleAuthSuccessClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setUser } = useAuth();
+  const { fetchMe } = useAuth();
 
   useEffect(() => {
     const token = searchParams.get('token');
     
     if (token) {
-      // Store token in localStorage
+      // Store token in localStorage and cookie
       localStorage.setItem('token', token);
+      document.cookie = `token=${token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
       
-      // Fetch user data
-      fetch('/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.user) {
-            setUser(data.user);
-          }
-          // Redirect to home
+      // Fetch user data using AuthContext's fetchMe
+      fetchMe()
+        .then(() => {
+          // Redirect to home after successful auth
           router.push('/');
         })
         .catch((error) => {
@@ -37,7 +30,7 @@ function GoogleAuthSuccessClient() {
     } else {
       router.push('/auth/login');
     }
-  }, [searchParams, router, setUser]);
+  }, [searchParams, router, fetchMe]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
