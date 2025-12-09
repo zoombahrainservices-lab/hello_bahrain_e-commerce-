@@ -133,7 +133,7 @@ export default function AdminBannersPage() {
         errorMessage = error.message;
       }
       
-      alert(`Error: ${errorMessage}\n\nPlease check the browser console for more details.`);
+      alert(`Error: ${errorMessage}`);
     }
   };
 
