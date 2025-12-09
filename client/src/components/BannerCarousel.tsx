@@ -12,6 +12,26 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [scrollY, setScrollY] = useState(0);
 
+  // Reset to first banner when banners change
+  useEffect(() => {
+    console.log('🔄 BannerCarousel: Banners updated', banners);
+    setCurrentIndex(0);
+  }, [banners]);
+
+  // Log banner properties for debugging
+  useEffect(() => {
+    if (banners.length > 0 && banners[currentIndex]) {
+      const currentBanner = banners[currentIndex];
+      console.log('📊 Current banner properties:', {
+        title: currentBanner.title,
+        textAlign: currentBanner.textAlign,
+        titleColor: currentBanner.titleColor,
+        buttonAlign: currentBanner.buttonAlign,
+        buttonBgColor: currentBanner.buttonBgColor,
+      });
+    }
+  }, [banners, currentIndex]);
+
   useEffect(() => {
     const handleScroll = () => {
       setScrollY(window.scrollY);
@@ -131,17 +151,25 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
                   {banner.subtitle}
                 </p>
               )}
-              {banner.ctaLink && (
-                <a
-                  href={banner.ctaLink}
-                  className="inline-block px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition shadow-lg"
+              {banner.ctaLabel && (
+                <div 
+                  className="w-full flex"
                   style={{
-                    backgroundColor: banner.buttonBgColor || '#2563eb',
-                    color: banner.buttonTextColor || '#ffffff',
+                    justifyContent: banner.buttonAlign === 'center' ? 'center' : 
+                                  banner.buttonAlign === 'right' ? 'flex-end' : 'flex-start',
                   }}
                 >
-                  {banner.ctaLabel || 'Shop Now'}
-                </a>
+                  <a
+                    href={banner.ctaLink || '#'}
+                    className="inline-block px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition shadow-lg"
+                    style={{
+                      backgroundColor: banner.buttonBgColor || '#2563eb',
+                      color: banner.buttonTextColor || '#ffffff',
+                    }}
+                  >
+                    {banner.ctaLabel}
+                  </a>
+                </div>
               )}
             </div>
           </div>

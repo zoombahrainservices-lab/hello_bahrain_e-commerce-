@@ -14,8 +14,44 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
+    if (!data || data.length === 0) {
+      return NextResponse.json([], {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      });
+    }
+
+    // Extract displayOrder from alignment data and sort
+    const bannersWithOrder = data.map((banner: any) => {
+      const ctaLink = banner.cta_link || '';
+      const linkParts = ctaLink.split('|||');
+      let displayOrder = 0;
+      
+      if (linkParts[1]) {
+        try {
+          const alignmentData = JSON.parse(linkParts[1]);
+          displayOrder = alignmentData.displayOrder || 0;
+        } catch (e) {
+          // Invalid JSON, use default
+        }
+      }
+      
+      return { ...banner, _displayOrder: displayOrder };
+    });
+
+    // Sort by displayOrder (lower numbers first), then by created_at
+    bannersWithOrder.sort((a: any, b: any) => {
+      if (a._displayOrder !== b._displayOrder) {
+        return a._displayOrder - b._displayOrder;
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
     // Transform banners to camelCase for frontend
-    const transformedBanners = (data || []).map((banner: any) => {
+    const transformedBanners = bannersWithOrder.map((banner: any) => {
       // Extract alignment data from cta_link if it exists
       const ctaLink = banner.cta_link || '';
       const linkParts = ctaLink.split('|||');
@@ -72,7 +108,14 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json(transformedBanners);
+    // Add cache-busting headers to ensure fresh data
+    return NextResponse.json(transformedBanners, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   } catch (error: any) {
     console.error('Error fetching banners:', error);
     console.error('Error details:', {

@@ -233,29 +233,64 @@ function MerchPageContent() {
     }
   }, []); // Only on mount
 
-  useEffect(() => {
-    fetchBanners();
-    fetchCategories();
-  }, []);
-
-  const fetchBanners = async () => {
+  const fetchBanners = useCallback(async () => {
     try {
-      const response = await api.get('/api/banners/active');
-      console.log('Banners fetched:', response.data);
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      console.log('🔄 Fetching banners with timestamp:', timestamp);
+      const response = await api.get('/api/banners/active', {
+        params: { _t: timestamp },
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
+      console.log('✅ Banners fetched:', response.data);
       if (response.data && Array.isArray(response.data)) {
-        setBanners(response.data);
+        console.log('📋 Setting banners state with', response.data.length, 'banners');
+        // Create new array to ensure React detects the change
+        setBanners([...response.data]);
       } else {
+        console.warn('⚠️ Invalid banners data:', response.data);
         setBanners([]);
       }
     } catch (error: any) {
-      console.error('Error fetching banners:', error);
+      console.error('❌ Error fetching banners:', error);
       setBanners([]);
       // Don't set error for banners - it's not critical
       if (error.code === 'ERR_NETWORK' || error.message?.includes('CORS')) {
         console.warn('CORS or network error when fetching banners');
       }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchBanners();
+    fetchCategories();
+  }, [fetchBanners]);
+
+  // Refetch banners when page becomes visible (user returns from admin panel)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Page became visible, refetch banners to get latest updates
+        fetchBanners();
+      }
+    };
+
+    const handleFocus = () => {
+      // Window gained focus, refetch banners
+      fetchBanners();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchBanners]);
 
   const fetchCategories = async () => {
     try {
@@ -390,7 +425,9 @@ function MerchPageContent() {
   return (
     <div className="min-h-screen">
       {/* Banners Carousel */}
-      {banners && banners.length > 0 && <BannerCarousel banners={banners} />}
+      {banners && banners.length > 0 && (
+        <BannerCarousel key={`banners-${banners.map(b => b._id).join('-')}`} banners={banners} />
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Category Navigation */}
