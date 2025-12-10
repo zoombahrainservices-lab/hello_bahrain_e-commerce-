@@ -228,3 +228,4 @@ Error: Show error message, log details
    - If "column doesn't exist" → Check database schema
    - If "invalid input" → Check data type conversions
 
+

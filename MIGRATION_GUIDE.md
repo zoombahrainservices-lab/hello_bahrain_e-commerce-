@@ -132,3 +132,4 @@ Required variables:
 - Error handling follows Next.js patterns (return NextResponse.json with status)
 - File uploads (base64 images) work the same way
 
+

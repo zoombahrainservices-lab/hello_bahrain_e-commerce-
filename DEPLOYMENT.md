@@ -75,3 +75,4 @@ The `server/` directory is **no longer needed** for running the application. All
 
 **Note**: The server directory is not deployed to Vercel - only the `client/` directory is used.
 
+

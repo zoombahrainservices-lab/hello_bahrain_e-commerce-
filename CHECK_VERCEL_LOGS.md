@@ -124,3 +124,4 @@ I've created a diagnostic endpoint to help debug:
 2. **Share the output from `/api/health` endpoint**
 3. This will tell us exactly what's wrong!
 
+

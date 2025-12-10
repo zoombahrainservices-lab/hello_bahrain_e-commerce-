@@ -78,3 +78,4 @@ npm run dev          # Start server on http://localhost:3000
 - Check terminal for server-side errors
 - Verify database tables exist in Supabase
 
+

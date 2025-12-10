@@ -98,3 +98,4 @@ Vercel automatically detects Next.js projects. Make sure:
 If your project root is the repository root, update Vercel settings:
 - **Settings** → **General** → **Root Directory**: `client`
 
+

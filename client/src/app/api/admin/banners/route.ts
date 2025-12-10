@@ -134,9 +134,9 @@ export async function POST(request: NextRequest) {
       active: bannerData.active !== undefined ? bannerData.active : true,
     };
 
-    if (bannerData.displayOrder !== undefined) {
-      insertData.display_order = bannerData.displayOrder;
-    }
+    // Note: display_order column doesn't exist in database
+    // displayOrder is stored in alignmentData JSON within cta_link
+    // Do NOT try to insert display_order as a separate column
 
     const { data, error } = await getSupabase()
       .from('banners')

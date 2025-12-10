@@ -5,3 +5,4 @@ export function generateToken(userId: string, role: 'user' | 'admin'): string {
   return jwt.sign({ id: userId, role }, jwtSecret, { expiresIn: '30d' });
 }
 
+
