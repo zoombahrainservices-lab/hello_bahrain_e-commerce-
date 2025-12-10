@@ -34,9 +34,27 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-6">
             <Link href="/" className="text-gray-700 hover:text-primary-600 transition">
-              Shop
+              Home
+            </Link>
+            <Link href="/" className="text-gray-700 hover:text-primary-600 transition">
+              E-commerce
+            </Link>
+            <Link href="/directory" className="text-gray-700 hover:text-primary-600 transition">
+              Directory
+            </Link>
+            <Link href="/news" className="text-gray-700 hover:text-primary-600 transition">
+              News
+            </Link>
+            <Link href="/events" className="text-gray-700 hover:text-primary-600 transition">
+              Events
+            </Link>
+            <Link href="/classifieds" className="text-gray-700 hover:text-primary-600 transition">
+              Classifieds
+            </Link>
+            <Link href="/power-groups" className="text-gray-700 hover:text-primary-600 transition">
+              Power Groups
             </Link>
             <Link href="/cart" className="relative text-gray-700 hover:text-primary-600 transition">
               <svg
@@ -107,6 +125,22 @@ export default function Header() {
                     >
                       My Orders
                     </Link>
+                    <Link
+                      href="/wallet"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowDropdown(false)}
+                    >
+                      Wallet
+                    </Link>
+                    {(user.role === 'premium' || user.role === 'admin') && (
+                      <Link
+                        href="/referrals"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => setShowDropdown(false)}
+                      >
+                        Referrals
+                      </Link>
+                    )}
                     {user.role === 'admin' && (
                       <Link
                         href="/admin"
@@ -160,7 +194,49 @@ export default function Header() {
                 className="text-gray-700 hover:text-primary-600"
                 onClick={() => setShowMobileMenu(false)}
               >
-                Shop
+                Home
+              </Link>
+              <Link
+                href="/"
+                className="text-gray-700 hover:text-primary-600"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                E-commerce
+              </Link>
+              <Link
+                href="/directory"
+                className="text-gray-700 hover:text-primary-600"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                Directory
+              </Link>
+              <Link
+                href="/news"
+                className="text-gray-700 hover:text-primary-600"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                News
+              </Link>
+              <Link
+                href="/events"
+                className="text-gray-700 hover:text-primary-600"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                Events
+              </Link>
+              <Link
+                href="/classifieds"
+                className="text-gray-700 hover:text-primary-600"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                Classifieds
+              </Link>
+              <Link
+                href="/power-groups"
+                className="text-gray-700 hover:text-primary-600"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                Power Groups
               </Link>
               <Link
                 href="/cart"
@@ -178,6 +254,22 @@ export default function Header() {
                   >
                     My Orders
                   </Link>
+                  <Link
+                    href="/wallet"
+                    className="text-gray-700 hover:text-primary-600"
+                    onClick={() => setShowMobileMenu(false)}
+                  >
+                    Wallet
+                  </Link>
+                  {(user.role === 'premium' || user.role === 'admin') && (
+                    <Link
+                      href="/referrals"
+                      className="text-gray-700 hover:text-primary-600"
+                      onClick={() => setShowMobileMenu(false)}
+                    >
+                      Referrals
+                    </Link>
+                  )}
                   {user.role === 'admin' && (
                     <Link
                       href="/admin"
