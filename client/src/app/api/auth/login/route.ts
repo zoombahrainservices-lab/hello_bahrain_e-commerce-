@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import { supabaseHelpers } from '@/lib/supabase-helpers';
 import { generateToken } from '@/lib/jwt';
+import { getCorsHeaders } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
 
+// Handle OPTIONS (preflight)
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  return NextResponse.json({}, { headers: getCorsHeaders(origin) });
+}
+
 // POST /api/auth/login
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
   try {
     const body = await request.json();
     const { identifier, password } = body; // identifier can be email or phone
@@ -15,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (!identifier || !password) {
       return NextResponse.json(
         { message: 'Email/phone and password are required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -53,6 +62,11 @@ export async function POST(request: NextRequest) {
         path: '/',
       });
 
+      // Add CORS headers
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+
       return response;
     }
 
@@ -67,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { message: 'Invalid email or password' },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       );
     }
 
@@ -75,7 +89,7 @@ export async function POST(request: NextRequest) {
     if (!user.password_hash) {
       return NextResponse.json(
         { message: 'Please login with Google' },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       );
     }
 
@@ -84,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (!isValidPassword) {
       return NextResponse.json(
         { message: 'Invalid email or password' },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       );
     }
 
@@ -109,14 +123,20 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
 
+    // Add CORS headers
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+
     return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
       { message: 'Server error during login' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
+
 
 

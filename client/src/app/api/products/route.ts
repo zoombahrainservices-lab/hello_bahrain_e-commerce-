@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseHelpers } from '@/lib/supabase-helpers';
+import { cors } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
+
+// Handle CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  return cors.handlePreflight(request) || new NextResponse(null, { status: 204 });
+}
 
 // GET /api/products - Public product listing with filters
 export async function GET(request: NextRequest) {
@@ -45,13 +51,14 @@ export async function GET(request: NextRequest) {
       updatedAt: product.updated_at,
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       items: transformedItems,
       total: result.count,
       page,
       totalPages,
       limit,
     });
+    return cors.addHeaders(response, request);
   } catch (error: any) {
     console.error('Error fetching products:', error);
     console.error('Error details:', {
@@ -68,10 +75,11 @@ export async function GET(request: NextRequest) {
       hint: error?.hint,
       stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
     };
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { message: errorMessage, error: errorDetails },
       { status: 500 }
     );
+    return cors.addHeaders(errorResponse, request);
   }
 }
 

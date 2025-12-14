@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import { supabaseHelpers } from '@/lib/supabase-helpers';
 import { generateToken } from '@/lib/jwt';
+import { getCorsHeaders } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
 
+// Handle OPTIONS (preflight)
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  return NextResponse.json({}, { headers: getCorsHeaders(origin) });
+}
+
 // POST /api/auth/register
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
   try {
     const body = await request.json();
     const { name, email, password, phone } = body;
@@ -15,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (!name || !email || !password || !phone) {
       return NextResponse.json(
         { message: 'All fields are required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -23,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json(
         { message: 'Invalid email format' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -32,14 +41,14 @@ export async function POST(request: NextRequest) {
     if (!/^[0-9+\-\s()]{6,20}$/.test(normalizedPhone)) {
       return NextResponse.json(
         { message: 'Invalid phone number format' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     if (password.length < 6) {
       return NextResponse.json(
         { message: 'Password must be at least 6 characters' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -48,7 +57,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { message: 'User already exists with this email' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -57,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (existingPhoneUser) {
       return NextResponse.json(
         { message: 'User already exists with this phone number' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -96,14 +105,20 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
 
+    // Add CORS headers
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+
     return response;
   } catch (error: any) {
     console.error('Registration error:', error);
     return NextResponse.json(
       { message: 'Server error during registration' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
+
 
 

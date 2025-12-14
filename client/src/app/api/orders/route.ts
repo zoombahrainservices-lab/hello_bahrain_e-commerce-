@@ -2,15 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
 import { getSupabase } from '@/lib/db';
 import { supabaseHelpers } from '@/lib/supabase-helpers';
+import { cors } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
+
+// Handle CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  return cors.handlePreflight(request) || new NextResponse(null, { status: 204 });
+}
 
 // POST /api/orders - Create new order
 export async function POST(request: NextRequest) {
   try {
+    // Handle CORS preflight
+    const corsResponse = cors.handlePreflight(request);
+    if (corsResponse) return corsResponse;
+
     const authResult = requireAuth(request);
     if (authResult instanceof NextResponse) {
-      return authResult;
+      return cors.addHeaders(authResult, request);
     }
 
     const body = await request.json();
@@ -18,17 +28,19 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
+      const errorResponse = NextResponse.json(
         { message: 'Order must contain at least one item' },
         { status: 400 }
       );
+      return cors.addHeaders(errorResponse, request);
     }
 
     if (!shippingAddress) {
-      return NextResponse.json(
+      const errorResponse = NextResponse.json(
         { message: 'Shipping address is required' },
         { status: 400 }
       );
+      return cors.addHeaders(errorResponse, request);
     }
 
     // Verify products exist and calculate total
@@ -39,17 +51,19 @@ export async function POST(request: NextRequest) {
       const product = await supabaseHelpers.findProductById(item.productId);
       
       if (!product) {
-        return NextResponse.json(
+        const errorResponse = NextResponse.json(
           { message: `Product not found: ${item.productId}` },
           { status: 404 }
         );
+        return cors.addHeaders(errorResponse, request);
       }
 
       if (!product.in_stock || product.stock_quantity < item.quantity) {
-        return NextResponse.json(
+        const errorResponse = NextResponse.json(
           { message: `Insufficient stock for ${product.name}` },
           { status: 400 }
         );
+        return cors.addHeaders(errorResponse, request);
       }
 
       orderItems.push({
@@ -113,14 +127,17 @@ export async function POST(request: NextRequest) {
 
     if (fetchError) throw fetchError;
 
-    return NextResponse.json(completeOrder, { status: 201 });
+    const response = NextResponse.json(completeOrder, { status: 201 });
+    return cors.addHeaders(response, request);
   } catch (error) {
     console.error('Error creating order:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { message: 'Error creating order' },
       { status: 500 }
     );
+    return cors.addHeaders(errorResponse, request);
   }
 }
+
 
 
