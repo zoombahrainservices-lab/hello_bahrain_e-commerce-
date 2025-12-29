@@ -1,0 +1,39 @@
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Primary brand color, adjusted from blue to a red that matches the logo
+        primary: {
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
+          400: '#f87171',
+          500: '#ef4444',
+          600: '#dc2626', // main brand red
+          700: '#b91c1c',
+          800: '#991b1b',
+          900: '#7f1d1d',
+        },
+      },
+      fontFamily: {
+        sans: ['BRHendrix', 'var(--font-inter)', 'system-ui', 'sans-serif'],
+        hendrix: ['BRHendrix', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        'base': ['15px', { lineHeight: '1.5', fontWeight: '600' }],
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;
+
