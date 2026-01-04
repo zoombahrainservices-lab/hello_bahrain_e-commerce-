@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 
 type Status = 'loading' | 'success' | 'failed';
 
-export default function PaymentCompletePage() {
+function PaymentCompleteContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<Status>('loading');
@@ -205,6 +205,25 @@ export default function PaymentCompletePage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function PaymentCompletePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="max-w-2xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <PaymentCompleteContent />
+    </Suspense>
   );
 }
 
