@@ -92,22 +92,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Build URLs
-    // Use localhost for development, production URL for production
-    // IMPORTANT: BENEFIT redirects with POST, and expects a single callback endpoint
-    // that returns plain text "REDIRECT=..." with HTTP 200 status
-    const baseUrl = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:3000'
-      : (process.env.CLIENT_URL || 'https://helloonebahrain.com');
-    // Use the same callback URL for both success and error cases
-    const callbackURL = `${baseUrl}/api/payments/benefit/callback?orderId=${orderId}`;
-    const responseURL = callbackURL;
-    const errorURL = callbackURL;
+    // CRITICAL: Always use production URL (never localhost)
+    // BenefitPay servers need to reach these URLs for Merchant Notification
+    const baseUrl = process.env.CLIENT_URL || 'https://helloonebahrain.com';
+    
+    // Use ACK endpoint for responseURL (fast acknowledgement only)
+    const responseURL = `${baseUrl}/api/payments/benefit/ack?orderId=${orderId}`;
+    
+    // Use error page for errorURL
+    const errorURL = `${baseUrl}/pay/benefit/error?orderId=${orderId}`;
 
     // Format amount to 3 decimal places for BHD
     const amountFormatted = parseFloat(amount.toString()).toFixed(3);
 
-    // Use order ID as trackId (numeric preferred, but UUID is acceptable)
-    const trackId = orderId;
+    // Generate numeric trackId (BenefitPay recommends numeric IDs)
+    // Use timestamp-based ID to ensure uniqueness
+    const numericTrackId = Date.now().toString();
+    
+    // Store the numeric trackId mapping in database for later lookup
+    await getSupabase()
+      .from('orders')
+      .update({ benefit_track_id: numericTrackId })
+      .eq('id', orderId);
+    
+    const trackId = numericTrackId;
 
     // Build plain trandata
     const trandataParams = {
