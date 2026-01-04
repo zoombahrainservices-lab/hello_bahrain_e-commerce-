@@ -55,9 +55,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify order exists and belongs to user
+    // Include benefit_track_id for trackId validation
     const { data: order, error: orderError } = await getSupabase()
       .from('orders')
-      .select('id, user_id, total, payment_status')
+      .select('id, user_id, total, payment_status, benefit_track_id')
       .eq('id', orderId)
       .eq('user_id', authResult.user.id)
       .single();
@@ -155,19 +156,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate trackId matches order
-    if (responseData.trackId && responseData.trackId !== orderId) {
-      console.error('[BENEFIT Process] TrackId mismatch:', {
-        responseTrackId: responseData.trackId,
-        orderId,
-      });
-      return cors.addHeaders(
-        NextResponse.json({
-          success: false,
-          message: 'Order reference mismatch',
-        }),
-        request
-      );
+    // Validate trackId matches the stored benefit_track_id
+    // We send numeric trackId to BenefitPay, not the UUID orderId
+    if (responseData.trackId) {
+      const storedTrackId = order.benefit_track_id;
+      
+      // Compare trackId from response with stored benefit_track_id
+      // Convert both to strings for comparison (trackId might be string or number)
+      if (storedTrackId && String(responseData.trackId) !== String(storedTrackId)) {
+        console.error('[BENEFIT Process] TrackId mismatch:', {
+          responseTrackId: responseData.trackId,
+          storedTrackId: storedTrackId,
+          orderId,
+        });
+        return cors.addHeaders(
+          NextResponse.json({
+            success: false,
+            message: 'Order reference mismatch',
+          }),
+          request
+        );
+      }
+      
+      // If no stored trackId but we have one in response, log warning but allow
+      // (might be from old orders before we started storing trackId)
+      if (!storedTrackId) {
+        console.warn('[BENEFIT Process] No stored benefit_track_id for order:', orderId);
+        // Still allow processing - might be from before we started storing trackId
+      }
     }
 
     // Update order as paid
