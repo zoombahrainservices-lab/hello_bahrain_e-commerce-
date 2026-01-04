@@ -8,6 +8,12 @@ import { api } from '@/lib/api';
 type Status = 'loading' | 'success' | 'failed';
 
 function BenefitResponsePageContent() {
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/fd6745cd-3673-4b32-8e6c-a748b411f1f6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pay/benefit/response/page.tsx:10',message:'BenefitResponsePageContent component mounted',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }
+  // #endregion
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<Status>('loading');
@@ -16,8 +22,20 @@ function BenefitResponsePageContent() {
   const [transactionDetails, setTransactionDetails] = useState<any>(null);
 
   useEffect(() => {
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/fd6745cd-3673-4b32-8e6c-a748b411f1f6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pay/benefit/response/page.tsx:18',message:'useEffect triggered',data:{timestamp:Date.now(),hasSearchParams:!!searchParams},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    }
+    // #endregion
+
     const orderIdParam = searchParams.get('orderId');
     const trandataParam = searchParams.get('trandata');
+
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/fd6745cd-3673-4b32-8e6c-a748b411f1f6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pay/benefit/response/page.tsx:22',message:'URL params extracted',data:{hasOrderId:!!orderIdParam,hasTrandata:!!trandataParam,orderIdLength:orderIdParam?.length||0,trandataLength:trandataParam?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    }
+    // #endregion
 
     if (!orderIdParam) {
       setStatus('failed');
@@ -35,6 +53,12 @@ function BenefitResponsePageContent() {
 
     // Process BENEFIT response
     const processResponse = async () => {
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/fd6745cd-3673-4b32-8e6c-a748b411f1f6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pay/benefit/response/page.tsx:37',message:'processResponse started',data:{orderId:orderIdParam,trandataLength:trandataParam?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      }
+      // #endregion
+
       try {
         // Call backend to decrypt and validate trandata
         const response = await api.post('/api/payments/benefit/process-response', {
@@ -53,6 +77,12 @@ function BenefitResponsePageContent() {
           setMessage(data.message || 'Payment was not completed.');
         }
       } catch (error: any) {
+        // #region agent log
+        if (typeof window !== 'undefined') {
+          fetch('http://127.0.0.1:7242/ingest/fd6745cd-3673-4b32-8e6c-a748b411f1f6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pay/benefit/response/page.tsx:55',message:'processResponse error',data:{errorMessage:error?.message,statusCode:error?.response?.status,hasResponse:!!error?.response},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        }
+        // #endregion
+
         console.error('BENEFIT response processing error:', error);
         setStatus('failed');
         setMessage(
@@ -184,6 +214,12 @@ function BenefitResponsePageContent() {
 }
 
 export default function BenefitResponsePage() {
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/fd6745cd-3673-4b32-8e6c-a748b411f1f6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pay/benefit/response/page.tsx:186',message:'BenefitResponsePage component rendered',data:{timestamp:Date.now(),pathname:window.location.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  }
+  // #endregion
+
   return (
     <Suspense fallback={
       <main className="max-w-2xl mx-auto px-4 py-12">
