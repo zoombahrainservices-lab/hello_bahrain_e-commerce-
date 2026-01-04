@@ -93,14 +93,15 @@ export async function POST(request: NextRequest) {
 
     // Build URLs
     // Use localhost for development, production URL for production
-    // IMPORTANT: BENEFIT redirects with POST, so we need API routes that can handle POST
-    // and then redirect to pages
+    // IMPORTANT: BENEFIT redirects with POST, and expects a single callback endpoint
+    // that returns plain text "REDIRECT=..." with HTTP 200 status
     const baseUrl = process.env.NODE_ENV === 'development' 
       ? 'http://localhost:3000'
       : (process.env.CLIENT_URL || 'https://helloonebahrain.com');
-    // Redirect to API routes that handle POST, then redirect to pages
-    const responseURL = `${baseUrl}/api/payments/benefit/callback?orderId=${orderId}`;
-    const errorURL = `${baseUrl}/api/payments/benefit/callback-error?orderId=${orderId}`;
+    // Use the same callback URL for both success and error cases
+    const callbackURL = `${baseUrl}/api/payments/benefit/callback?orderId=${orderId}`;
+    const responseURL = callbackURL;
+    const errorURL = callbackURL;
 
     // Format amount to 3 decimal places for BHD
     const amountFormatted = parseFloat(amount.toString()).toFixed(3);
