@@ -1,0 +1,238 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-middleware';
+import { getSupabase } from '@/lib/db';
+import { cors } from '@/lib/cors';
+import { decryptTrandata } from '@/lib/services/benefit/crypto';
+import { parseResponseTrandata, isTransactionSuccessful } from '@/lib/services/benefit/trandata';
+
+export const dynamic = 'force-dynamic';
+
+// Handle CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  return cors.handlePreflight(request) || new NextResponse(null, { status: 204 });
+}
+
+/**
+ * POST /api/payments/benefit/process-response
+ * Process BENEFIT payment response (decrypt and validate)
+ * 
+ * Request body:
+ * - orderId: string (required)
+ * - trandata: string (required, encrypted hex string from BENEFIT)
+ * 
+ * Response:
+ * - success: boolean
+ * - message: string
+ * - transactionDetails: object (if successful)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const corsResponse = cors.handlePreflight(request);
+    if (corsResponse) return corsResponse;
+
+    // Authenticate user
+    const authResult = requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return cors.addHeaders(authResult, request);
+    }
+
+    const body = await request.json();
+    const { orderId, trandata } = body;
+
+    // Validation
+    if (!orderId) {
+      return cors.addHeaders(
+        NextResponse.json({ message: 'orderId is required' }, { status: 400 }),
+        request
+      );
+    }
+
+    if (!trandata) {
+      return cors.addHeaders(
+        NextResponse.json({ message: 'trandata is required' }, { status: 400 }),
+        request
+      );
+    }
+
+    // Verify order exists and belongs to user
+    const { data: order, error: orderError } = await getSupabase()
+      .from('orders')
+      .select('id, user_id, total, payment_status')
+      .eq('id', orderId)
+      .eq('user_id', authResult.user.id)
+      .single();
+
+    if (orderError || !order) {
+      return cors.addHeaders(
+        NextResponse.json({ message: 'Order not found' }, { status: 404 }),
+        request
+      );
+    }
+
+    // Check if order is already paid (idempotency)
+    if (order.payment_status === 'paid') {
+      return cors.addHeaders(
+        NextResponse.json({
+          success: true,
+          message: 'Order already processed',
+        }),
+        request
+      );
+    }
+
+    // Get resource key from environment
+    const resourceKey = process.env.BENEFIT_RESOURCE_KEY;
+
+    if (!resourceKey) {
+      console.error('[BENEFIT Process] Missing resource key');
+      return cors.addHeaders(
+        NextResponse.json({ message: 'BENEFIT gateway not configured' }, { status: 500 }),
+        request
+      );
+    }
+
+    // Decrypt trandata
+    let decryptedTrandata: string;
+    try {
+      decryptedTrandata = decryptTrandata(trandata, resourceKey);
+    } catch (decryptError: any) {
+      console.error('[BENEFIT Process] Decryption error:', decryptError.message);
+      return cors.addHeaders(
+        NextResponse.json({ message: 'Failed to decrypt payment data' }, { status: 400 }),
+        request
+      );
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[BENEFIT Process] Decrypted trandata:', decryptedTrandata);
+    }
+
+    // Parse trandata
+    let responseData;
+    try {
+      responseData = parseResponseTrandata(decryptedTrandata);
+    } catch (parseError: any) {
+      console.error('[BENEFIT Process] Parse error:', parseError.message);
+      return cors.addHeaders(
+        NextResponse.json({ message: 'Invalid payment response format' }, { status: 400 }),
+        request
+      );
+    }
+
+    // Validate transaction
+    const isSuccessful = isTransactionSuccessful(responseData);
+
+    if (!isSuccessful) {
+      console.log('[BENEFIT Process] Transaction failed:', responseData.result);
+      return cors.addHeaders(
+        NextResponse.json({
+          success: false,
+          message: `Payment failed: ${responseData.result || 'Unknown error'}`,
+        }),
+        request
+      );
+    }
+
+    // Validate amount matches order
+    if (responseData.amt) {
+      const responseAmount = parseFloat(responseData.amt);
+      const orderAmount = parseFloat(order.total);
+      const amountDiff = Math.abs(responseAmount - orderAmount);
+
+      if (amountDiff > 0.01) { // Allow 0.01 difference for rounding
+        console.error('[BENEFIT Process] Amount mismatch:', {
+          responseAmount,
+          orderAmount,
+          difference: amountDiff,
+        });
+        return cors.addHeaders(
+          NextResponse.json({
+            success: false,
+            message: 'Payment amount mismatch',
+          }),
+          request
+        );
+      }
+    }
+
+    // Validate trackId matches order
+    if (responseData.trackId && responseData.trackId !== orderId) {
+      console.error('[BENEFIT Process] TrackId mismatch:', {
+        responseTrackId: responseData.trackId,
+        orderId,
+      });
+      return cors.addHeaders(
+        NextResponse.json({
+          success: false,
+          message: 'Order reference mismatch',
+        }),
+        request
+      );
+    }
+
+    // Update order as paid
+    const updateData: any = {
+      payment_status: 'paid',
+      paid_on: new Date().toISOString(),
+      payment_raw_response: responseData,
+      inventory_status: 'sold', // Mark inventory as sold
+      reservation_expires_at: null, // Clear reservation expiry
+    };
+
+    // Store BENEFIT-specific fields
+    if (responseData.transId) {
+      updateData.benefit_trans_id = responseData.transId;
+    }
+    if (responseData.ref) {
+      updateData.benefit_ref = responseData.ref;
+    }
+    if (responseData.authRespCode) {
+      updateData.benefit_auth_resp_code = responseData.authRespCode;
+    }
+    if (responseData.paymentId) {
+      updateData.benefit_payment_id = responseData.paymentId;
+    }
+
+    const { error: updateError } = await getSupabase()
+      .from('orders')
+      .update(updateData)
+      .eq('id', orderId);
+
+    if (updateError) {
+      console.error('[BENEFIT Process] Update error:', updateError);
+      return cors.addHeaders(
+        NextResponse.json({ message: 'Failed to update order status' }, { status: 500 }),
+        request
+      );
+    }
+
+    console.log('[BENEFIT Process] Payment successful for order:', orderId);
+
+    return cors.addHeaders(
+      NextResponse.json({
+        success: true,
+        message: 'Payment processed successfully',
+        transactionDetails: {
+          transId: responseData.transId,
+          ref: responseData.ref,
+          authRespCode: responseData.authRespCode,
+        },
+      }),
+      request
+    );
+  } catch (error: any) {
+    console.error('[BENEFIT Process] Error:', error);
+    return cors.addHeaders(
+      NextResponse.json(
+        {
+          success: false,
+          message: error.message || 'Failed to process payment response',
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        },
+        { status: 500 }
+      ),
+      request
+    );
+  }
+}
+

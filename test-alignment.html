@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alignment Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .banner {
+            position: relative;
+            height: 400px;
+            background: url('https://images.unsplash.com/photo-1441986300917-64674bd600d8') center/cover;
+            margin-bottom: 30px;
+            border: 2px solid #333;
+        }
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            padding: 32px;
+        }
+        .content {
+            color: white;
+            padding: 16px;
+            max-width: 768px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .text-content {
+            order: 1;
+        }
+        .button-container {
+            order: 2;
+            margin-top: 16px;
+            display: flex;
+            width: 100%;
+        }
+        .btn {
+            display: inline-block;
+            background: white;
+            color: #111;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        h1 {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+        p {
+            font-size: 1.5rem;
+            margin-bottom: 32px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+        }
+        select {
+            padding: 8px;
+            margin: 0 10px;
+            font-size: 16px;
+        }
+        label {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Banner Alignment Test</h2>
+    <div class="controls">
+        <div style="margin-bottom: 10px;">
+            <label>Text Horizontal:</label>
+            <select id="textAlign">
+                <option value="flex-start">Left</option>
+                <option value="center">Center</option>
+                <option value="flex-end">Right</option>
+            </select>
+            
+            <label>Text Vertical:</label>
+            <select id="textVertical">
+                <option value="flex-start">Top</option>
+                <option value="center" selected>Middle</option>
+                <option value="flex-end">Bottom</option>
+            </select>
+        </div>
+        <div>
+            <label>Button Horizontal:</label>
+            <select id="buttonAlign">
+                <option value="flex-start">Left</option>
+                <option value="center">Center</option>
+                <option value="flex-end">Right</option>
+            </select>
+            
+            <label>Button Vertical:</label>
+            <select id="buttonVertical">
+                <option value="flex-start">Top</option>
+                <option value="center" selected>Middle</option>
+                <option value="flex-end">Bottom</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="banner">
+        <div class="overlay" id="overlay">
+            <div class="content" id="content">
+                <div class="text-content">
+                    <h1>New Collection</h1>
+                    <p>Explore our latest arrivals for the season</p>
+                </div>
+                <div class="button-container" id="buttonContainer">
+                    <a href="#" class="btn">Shop Now</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const overlay = document.getElementById('overlay');
+        const content = document.getElementById('content');
+        const buttonContainer = document.getElementById('buttonContainer');
+        
+        const textAlignSelect = document.getElementById('textAlign');
+        const textVerticalSelect = document.getElementById('textVertical');
+        const buttonAlignSelect = document.getElementById('buttonAlign');
+        const buttonVerticalSelect = document.getElementById('buttonVertical');
+
+        function updateAlignment() {
+            const textAlign = textAlignSelect.value;
+            const textVertical = textVerticalSelect.value;
+            const buttonAlign = buttonAlignSelect.value;
+            const buttonVertical = buttonVerticalSelect.value;
+
+            // Update overlay flex alignment
+            overlay.style.alignItems = textVertical;
+            overlay.style.justifyContent = textAlign;
+
+            // Update text alignment
+            if (textAlign === 'center') {
+                content.style.textAlign = 'center';
+            } else if (textAlign === 'flex-end') {
+                content.style.textAlign = 'right';
+            } else {
+                content.style.textAlign = 'left';
+            }
+
+            // Update button alignment
+            buttonContainer.style.justifyContent = buttonAlign;
+
+            console.log('Alignment updated:', {
+                textAlign,
+                textVertical,
+                buttonAlign,
+                buttonVertical
+            });
+        }
+
+        textAlignSelect.addEventListener('change', updateAlignment);
+        textVerticalSelect.addEventListener('change', updateAlignment);
+        buttonAlignSelect.addEventListener('change', updateAlignment);
+        buttonVerticalSelect.addEventListener('change', updateAlignment);
+
+        // Initial update
+        updateAlignment();
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
