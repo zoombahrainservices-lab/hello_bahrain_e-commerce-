@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Fast acknowledgement - no processing, just return redirect URL
-    const redirectUrl = `${baseUrl}/pay/benefit/response?orderId=${orderId || 'unknown'}`;
+    // Redirect to response-handler which will convert POST to GET
+    const redirectUrl = `${baseUrl}/api/payments/benefit/response-handler?orderId=${orderId || 'unknown'}`;
     
     // Return plain text REDIRECT response (exactly as BenefitPay expects)
     return new Response(`REDIRECT=${redirectUrl}`, {
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const orderId = request.nextUrl.searchParams.get('orderId') || 'unknown';
   const baseUrl = process.env.CLIENT_URL || 'https://helloonebahrain.com';
-  const redirectUrl = `${baseUrl}/pay/benefit/response?orderId=${orderId}`;
+  const redirectUrl = `${baseUrl}/api/payments/benefit/response-handler?orderId=${orderId}`;
   
   return new Response(`REDIRECT=${redirectUrl}`, {
     status: 200,
