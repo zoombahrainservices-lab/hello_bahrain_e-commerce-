@@ -93,8 +93,13 @@ export function validateWalletCredentials(): {
   // Try wallet-specific credentials first, fallback to PG credentials
   const merchantId = process.env.BENEFITPAY_WALLET_MERCHANT_ID || tranportalId;
   // App ID should be TRANPORTAL_PASSWORD, NOT TRANPORTAL_ID
-  // If password is not set, we should NOT fallback to ID (they are different!)
-  const appId = process.env.BENEFITPAY_WALLET_APP_ID || tranportalPassword;
+  // If password is not set or same as merchantId, use the correct App ID: 1988588907
+  let appId = process.env.BENEFITPAY_WALLET_APP_ID || tranportalPassword;
+  // If appId is missing or same as merchantId, use the correct App ID
+  if (!appId || appId === merchantId) {
+    console.warn('[BenefitPay Wallet] App ID is missing or same as Merchant ID. Using correct App ID: 1988588907');
+    appId = '1988588907';
+  }
   const secretKey = process.env.BENEFITPAY_WALLET_SECRET_KEY || resourceKey;
   const clientId = process.env.BENEFITPAY_WALLET_CLIENT_ID; // Optional
   const checkStatusUrl = process.env.BENEFITPAY_WALLET_CHECK_STATUS_URL || 
