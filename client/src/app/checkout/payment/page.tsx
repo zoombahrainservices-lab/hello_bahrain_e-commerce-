@@ -13,6 +13,8 @@ import { api } from '@/lib/api';
 declare global {
   interface Window {
     Checkout?: any;
+    jQuery?: any;
+    $?: any;
     InApp?: {
       open: (
         params: any,
@@ -70,25 +72,84 @@ export default function PaymentPage() {
   // Note: EazyPay Checkout now uses server-side invoice creation and redirect
   // No need to load Checkout.js script anymore
   
-  // Load BenefitPay Wallet SDK when needed
+  // Load jQuery and BenefitPay Wallet SDK when needed
   useEffect(() => {
     if (paymentMethod === 'benefitpay_wallet' && !sdkLoaded) {
-      const script = document.createElement('script');
-      script.src = '/InApp.min.js';
-      script.async = true;
-      script.onload = () => {
-        console.log('[Wallet SDK] SDK loaded successfully');
-        setSdkLoaded(true);
+      // Check if jQuery is already loaded
+      const loadJQuery = (): Promise<void> => {
+        return new Promise((resolve, reject) => {
+          if (window.jQuery) {
+            console.log('[Wallet SDK] jQuery already loaded');
+            resolve();
+            return;
+          }
+
+          const jqueryScript = document.createElement('script');
+          jqueryScript.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
+          jqueryScript.async = true;
+          jqueryScript.onload = () => {
+            console.log('[Wallet SDK] jQuery loaded successfully');
+            resolve();
+          };
+          jqueryScript.onerror = () => {
+            console.error('[Wallet SDK] Failed to load jQuery');
+            reject(new Error('Failed to load jQuery'));
+          };
+          document.head.appendChild(jqueryScript);
+        });
       };
-      script.onerror = () => {
-        console.error('[Wallet SDK] Failed to load SDK');
-        setError('Failed to load BenefitPay SDK. Please try again.');
+
+      // Load SDK after jQuery
+      const loadSDK = (): Promise<void> => {
+        return new Promise((resolve, reject) => {
+          // Check if SDK is already loaded
+          if (window.InApp) {
+            console.log('[Wallet SDK] SDK already loaded');
+            resolve();
+            return;
+          }
+
+          const sdkScript = document.createElement('script');
+          sdkScript.src = '/InApp.min.js';
+          sdkScript.async = true;
+          sdkScript.onload = () => {
+            console.log('[Wallet SDK] SDK script loaded');
+            // Wait for InApp to be available (it's initialized in $(document).ready)
+            const checkInApp = setInterval(() => {
+              if (window.InApp && window.jQuery) {
+                console.log('[Wallet SDK] SDK initialized successfully');
+                clearInterval(checkInApp);
+                setSdkLoaded(true);
+                resolve();
+              }
+            }, 100);
+
+            // Timeout after 5 seconds
+            setTimeout(() => {
+              clearInterval(checkInApp);
+              if (!window.InApp) {
+                reject(new Error('SDK failed to initialize'));
+              }
+            }, 5000);
+          };
+          sdkScript.onerror = () => {
+            console.error('[Wallet SDK] Failed to load SDK script');
+            reject(new Error('Failed to load BenefitPay SDK'));
+          };
+          document.body.appendChild(sdkScript);
+        });
       };
-      document.body.appendChild(script);
-      
-      return () => {
-        document.body.removeChild(script);
-      };
+
+      // Load jQuery first, then SDK
+      loadJQuery()
+        .then(() => loadSDK())
+        .then(() => {
+          console.log('[Wallet SDK] Both jQuery and SDK loaded successfully');
+        })
+        .catch((err) => {
+          console.error('[Wallet SDK] Loading error:', err);
+          setError('Failed to load BenefitPay SDK. Please refresh the page and try again.');
+        });
     }
   }, [paymentMethod, sdkLoaded]);
 
@@ -178,8 +239,8 @@ export default function PaymentPage() {
       console.log('[Wallet] Signed parameters received, opening SDK...');
 
       // Step 2: Open InApp SDK
-      if (!window.InApp) {
-        throw new Error('BenefitPay Wallet SDK not loaded. Please refresh the page.');
+      if (!window.InApp || !window.jQuery) {
+        throw new Error('BenefitPay Wallet SDK is still loading. Please wait a moment and try again.');
       }
 
       window.InApp.open(
