@@ -53,16 +53,22 @@ export function validatePGCredentials(): PGCredentials {
     throw new Error(errorMsg);
   }
 
+  // At this point, TypeScript knows all values are defined, but we need to assert for type narrowing
+  // We've already validated above, so these are guaranteed to be strings
+  const validatedTranportalId = tranportalId as string;
+  const validatedTranportalPassword = tranportalPassword as string;
+  const validatedResourceKey = resourceKey as string;
+
   console.log('[BenefitPay PG Config] ✓ All required credentials present');
-  console.log('[BenefitPay PG Config] ✓ tranportalId:', tranportalId);
+  console.log('[BenefitPay PG Config] ✓ tranportalId:', validatedTranportalId);
   console.log('[BenefitPay PG Config] ✓ tranportalPassword: SET');
-  console.log('[BenefitPay PG Config] ✓ resourceKey: SET (length:', resourceKey.length, ')');
+  console.log('[BenefitPay PG Config] ✓ resourceKey: SET (length:', validatedResourceKey.length, ')');
   console.log('[BenefitPay PG Config] ✓ endpoint:', endpoint);
 
   return {
-    tranportalId,
-    tranportalPassword,
-    resourceKey,
+    tranportalId: validatedTranportalId,
+    tranportalPassword: validatedTranportalPassword,
+    resourceKey: validatedResourceKey,
     endpoint,
   };
 }
