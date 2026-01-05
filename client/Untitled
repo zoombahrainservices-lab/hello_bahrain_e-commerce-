@@ -1,0 +1,4 @@
+BENEFITPAY_WALLET_MERCHANT_ID=3186
+BENEFITPAY_WALLET_APP_ID=1988588907
+BENEFITPAY_WALLET_SECRET_KEY=z2sd680omqyp0pw9qsini7p8jpoh2fmbg84k3ucc1zfut
+BENEFITPAY_WALLET_CHECK_STATUS_URL=https://api.test-benefitpay.bh/web/v1/merchant/transaction/check-status

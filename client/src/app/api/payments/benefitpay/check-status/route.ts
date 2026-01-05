@@ -17,10 +17,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
 import { getSupabase } from '@/lib/db';
 import { cors } from '@/lib/cors';
-import { 
-  generateStatusCheckSignature, 
-  validateWalletCredentials 
-} from '@/lib/services/benefitpay/crypto';
+import { validateWalletCredentials } from '@/lib/services/benefitpay_wallet/config';
+import { generateSignatureForStatus } from '@/lib/services/benefitpay_wallet/signing';
 import { releaseStockBatch } from '@/lib/db-stock-helpers';
 
 export const dynamic = 'force-dynamic';
@@ -138,8 +136,8 @@ export async function POST(request: NextRequest) {
       reference_id: referenceNumber,
     };
 
-    // Generate signature
-    const signature = generateStatusCheckSignature(statusParams, credentials.secretKey);
+    // Generate signature using centralized signing utility
+    const signature = generateSignatureForStatus(statusParams, credentials.secretKey);
 
     console.log('[BenefitPay Check Status] Calling BenefitPay API:', {
       url: credentials.checkStatusUrl,
@@ -155,9 +153,12 @@ export async function POST(request: NextRequest) {
       'X-FOO-Signature-Type': 'KEYVAL',
     };
 
-    // Add X-CLIENT-ID if provided
-    if (credentials.clientId) {
+    // Add X-CLIENT-ID only if provided (Phase 4.1)
+    if (credentials.clientId && credentials.clientId.trim() !== '') {
       headers['X-CLIENT-ID'] = credentials.clientId;
+      console.log('[BenefitPay Check Status] ✓ X-CLIENT-ID header added');
+    } else {
+      console.log('[BenefitPay Check Status] ⚠ X-CLIENT-ID not provided (optional, skipping)');
     }
 
     const response = await fetch(credentials.checkStatusUrl, {
@@ -184,15 +185,141 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[BenefitPay Check Status] API response:', {
-      status: response.status,
-      data: responseData,
+    console.log('[BenefitPay Check Status] Raw API response:', {
+      httpStatus: response.status,
+      contentType: contentType,
+      hasData: !!responseData,
+      responseKeys: responseData ? Object.keys(responseData) : [],
     });
+    
+    console.log('[BenefitPay Check Status] API response data:', JSON.stringify(responseData, null, 2));
 
-    // Process response based on status
-    if (responseData.status === 'success') {
-      // Payment successful - create order
-      console.log('[BenefitPay Check Status] Payment successful, creating order');
+    // Defensive parsing: Validate response structure
+    // BenefitPay API returns HTTP 200 even for errors, so we must parse response body
+    
+    // Handle meta.status (if present)
+    if (responseData.meta) {
+      console.log('[BenefitPay Check Status] Response has meta:', responseData.meta);
+      
+      if (responseData.meta.status === 'FAILED' || responseData.meta.status === 'ERROR') {
+        console.log('[BenefitPay Check Status] meta.status indicates failure:', responseData.meta.status);
+        // Treat as pending/not found (allow retry)
+        return cors.addHeaders(
+          NextResponse.json({
+            success: false,
+            status: 'pending',
+            reason: responseData.meta.message || 'Transaction not found or still processing',
+          }),
+          request
+        );
+      }
+    }
+
+    // Handle response.status or status field
+    let transactionStatus: string | undefined;
+    if (responseData.response && responseData.response.status) {
+      transactionStatus = responseData.response.status;
+    } else if (responseData.status) {
+      transactionStatus = responseData.status;
+    }
+
+    console.log('[BenefitPay Check Status] Transaction status:', transactionStatus || 'NOT FOUND');
+
+    // Handle error structures
+    if (responseData.error_code || responseData.errorCode || responseData.error) {
+      const errorCode = responseData.error_code || responseData.errorCode;
+      const errorDesc = responseData.error_description || responseData.errorDescription || responseData.error;
+      console.log('[BenefitPay Check Status] Error in response:', { errorCode, errorDesc });
+      
+      // Treat as failed only if explicitly failed, otherwise pending
+      return cors.addHeaders(
+        NextResponse.json({
+          success: false,
+          status: 'failed',
+          reason: errorDesc || errorCode || 'Payment failed',
+        }),
+        request
+      );
+    }
+
+    // Validate required fields for success case
+    if (transactionStatus === 'success') {
+      console.log('[BenefitPay Check Status] Validating success response fields...');
+      
+      const requiredFields = ['rrn', 'receipt_number'];
+      const missingFields = requiredFields.filter(field => 
+        !responseData[field] && !(responseData.response && responseData.response[field])
+      );
+      
+      if (missingFields.length > 0) {
+        console.warn('[BenefitPay Check Status] Success response missing fields:', missingFields);
+        // Still proceed, but log warning
+      }
+    }
+
+    // Process response based on validated status
+    if (transactionStatus === 'success') {
+      // Payment successful - create order (with idempotency check)
+      console.log('[BenefitPay Check Status] Payment successful, checking for existing order...');
+
+      // IDEMPOTENCY CHECK 1: Check if session already has an order
+      if (session.order_id) {
+        console.log('[BenefitPay Check Status] Session already has order_id:', session.order_id);
+        
+        // Verify order exists
+        const { data: existingOrder } = await getSupabase()
+          .from('orders')
+          .select('id')
+          .eq('id', session.order_id)
+          .single();
+
+        if (existingOrder) {
+          console.log('[BenefitPay Check Status] ✓ Returning existing order (idempotent)');
+          return cors.addHeaders(
+            NextResponse.json({
+              success: true,
+              orderId: session.order_id,
+              status: 'paid',
+              message: 'Payment already processed (idempotent)',
+            }),
+            request
+          );
+        } else {
+          console.warn('[BenefitPay Check Status] order_id exists but order not found, will create new');
+        }
+      }
+
+      // IDEMPOTENCY CHECK 2: Check if order already exists for this checkout_session_id
+      const { data: existingOrderBySession } = await getSupabase()
+        .from('orders')
+        .select('id')
+        .eq('checkout_session_id', sessionId)
+        .single();
+
+      if (existingOrderBySession) {
+        console.log('[BenefitPay Check Status] ✓ Order already exists for this session (idempotent):', existingOrderBySession.id);
+        
+        // Update session with order_id if missing
+        if (!session.order_id) {
+          await getSupabase()
+            .from('checkout_sessions')
+            .update({ order_id: existingOrderBySession.id })
+            .eq('id', sessionId);
+        }
+
+        return cors.addHeaders(
+          NextResponse.json({
+            success: true,
+            orderId: existingOrderBySession.id,
+            status: 'paid',
+            message: 'Payment already processed (idempotent)',
+          }),
+          request
+        );
+      }
+
+      // No existing order found - create new order
+      console.log('[BenefitPay Check Status] Creating new order from session snapshot...');
 
       // Create order from session snapshot
       const orderData = {
@@ -204,11 +331,12 @@ export async function POST(request: NextRequest) {
         payment_provider: 'benefitpay',
         payment_status: 'completed',
         status: 'pending',
+        checkout_session_id: sessionId, // IDEMPOTENCY ANCHOR
         // Store wallet-specific fields
         reference_number: referenceNumber,
-        rrn: responseData.rrn || null,
-        receipt_number: responseData.receipt_number || null,
-        gateway: responseData.gateway || null,
+        rrn: responseData.rrn || responseData.response?.rrn || null,
+        receipt_number: responseData.receipt_number || responseData.response?.receipt_number || null,
+        gateway: responseData.gateway || responseData.response?.gateway || null,
         payment_raw_response: responseData,
       };
 
@@ -219,6 +347,31 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (orderError) {
+        // Check if error is due to unique constraint (idempotency)
+        if (orderError.code === '23505' && orderError.message.includes('unique_checkout_session_id')) {
+          console.log('[BenefitPay Check Status] Unique constraint hit - order already exists (race condition)');
+          
+          // Fetch the existing order
+          const { data: racedOrder } = await getSupabase()
+            .from('orders')
+            .select('id')
+            .eq('checkout_session_id', sessionId)
+            .single();
+
+          if (racedOrder) {
+            console.log('[BenefitPay Check Status] ✓ Returning existing order from race condition:', racedOrder.id);
+            return cors.addHeaders(
+              NextResponse.json({
+                success: true,
+                orderId: racedOrder.id,
+                status: 'paid',
+                message: 'Payment already processed (idempotent)',
+              }),
+              request
+            );
+          }
+        }
+
         console.error('[BenefitPay Check Status] Failed to create order:', orderError);
         return cors.addHeaders(
           NextResponse.json(
@@ -254,9 +407,11 @@ export async function POST(request: NextRequest) {
         }),
         request
       );
-    } else if (responseData.status === 'failed' || responseData.error_code) {
+    } else if (transactionStatus === 'failed') {
       // Payment failed - mark session as failed and release inventory
-      console.log('[BenefitPay Check Status] Payment failed:', responseData.error_description || responseData.error_code);
+      const failureReason = responseData.error_description || responseData.errorDescription || 
+                           responseData.error_code || responseData.errorCode || 'Payment declined';
+      console.log('[BenefitPay Check Status] Payment failed:', failureReason);
 
       // Release inventory if it was reserved
       if (session.inventory_reserved_at && !session.inventory_released_at) {
@@ -290,13 +445,13 @@ export async function POST(request: NextRequest) {
         NextResponse.json({
           success: false,
           status: 'failed',
-          reason: responseData.error_description || responseData.error_code || 'Payment failed',
+          reason: failureReason,
         }),
         request
       );
     } else {
-      // Transaction not found or pending - keep session as initiated
-      console.log('[BenefitPay Check Status] Transaction not found or pending');
+      // Transaction not found, pending, or unknown status - keep session as initiated
+      console.log('[BenefitPay Check Status] Transaction not found, pending, or unknown status:', transactionStatus || 'undefined');
 
       return cors.addHeaders(
         NextResponse.json({

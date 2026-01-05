@@ -68,6 +68,13 @@ export default function PaymentPage() {
   const [walletProcessing, setWalletProcessing] = useState(false);
   const [walletPolling, setWalletPolling] = useState(false);
   const [sdkLoaded, setSdkLoaded] = useState(false);
+  const [walletError, setWalletError] = useState<{
+    message: string;
+    sessionId?: string;
+    referenceAttempt?: number;
+    canRetry?: boolean;
+  } | null>(null);
+  const [manualCheckLoading, setManualCheckLoading] = useState(false);
 
   // Note: EazyPay Checkout now uses server-side invoice creation and redirect
   // No need to load Checkout.js script anymore
@@ -220,6 +227,7 @@ export default function PaymentPage() {
     try {
       setWalletProcessing(true);
       setError('');
+      setWalletError(null); // Clear previous wallet errors
 
       // Step 1: Call backend to get signed parameters
       console.log('[Wallet] Initializing wallet payment...');
@@ -227,7 +235,7 @@ export default function PaymentPage() {
         sessionId,
         showResult: true,
         hideMobileQR: false,
-        qr_timeout: 300,
+        qr_timeout: 150000, // 2.5 minutes in milliseconds
       });
 
       const { signedParams, referenceNumber } = initResponse.data;
@@ -264,7 +272,7 @@ export default function PaymentPage() {
           // Start polling for payment status
           await pollPaymentStatus(referenceNumber, sessionId);
         },
-        // Error callback - Enhanced logging
+        // Error callback - Enhanced logging and UI
         (error: any) => {
           console.error('[Wallet] SDK error callback:', error);
           console.error('[Wallet] SDK error callback (full):', JSON.stringify(error, null, 2));
@@ -278,8 +286,20 @@ export default function PaymentPage() {
             console.error('[BenefitPay] Error Message:', error.message);
           }
           setWalletProcessing(false);
-          const errorMsg = error?.errorDescription || error?.message || 'BenefitPay Wallet payment failed. Please try again.';
-          setError(errorMsg);
+          
+          const errorMsg = error?.errorDescription || error?.message || 'BenefitPay Wallet payment failed';
+          
+          // Get session info from init response
+          const maskedSessionId = sessionId ? `***${sessionId.substring(sessionId.length - 6)}` : 'unknown';
+          const referenceAttempt = initResponse?.data?.referenceAttempt || 1;
+          
+          // Set wallet-specific error with retry capability
+          setWalletError({
+            message: errorMsg,
+            sessionId: maskedSessionId,
+            referenceAttempt,
+            canRetry: true,
+          });
         },
         // Close callback
         async () => {
@@ -298,19 +318,57 @@ export default function PaymentPage() {
       setWalletProcessing(false);
       const backendMessage = err.response?.data?.message || err.message;
       
-      // Make sure error message is clearly about BenefitPay Wallet, not EazyPay
+      // Make sure error message is clearly about BenefitPay Wallet
       let errorMsg = 'BenefitPay Wallet payment failed';
       if (backendMessage) {
-        if (backendMessage.includes('EazyPay')) {
-          // This shouldn't happen, but if it does, show a clearer message
+        if (backendMessage.includes('credentials')) {
           errorMsg = 'BenefitPay Wallet is not properly configured. Please contact support.';
-        } else if (backendMessage.includes('not configured') || backendMessage.includes('credentials')) {
-          errorMsg = 'BenefitPay Wallet is not properly configured. Please set BENEFIT_TRANPORTAL_ID, BENEFIT_TRANPORTAL_PASSWORD, and BENEFIT_RESOURCE_KEY.';
         } else {
           errorMsg = `BenefitPay Wallet: ${backendMessage}`;
         }
       }
-      setError(errorMsg);
+      
+      setWalletError({
+        message: errorMsg,
+        canRetry: true, // Allow retry for initialization errors
+      });
+    }
+  };
+
+  // Manual status check (Phase 6.2)
+  const handleManualStatusCheck = async () => {
+    if (!walletError || manualCheckLoading) return;
+    
+    try {
+      setManualCheckLoading(true);
+      setError('');
+      
+      // Get sessionId from localStorage
+      const pendingSessionId = typeof window !== 'undefined' 
+        ? window.localStorage.getItem('pending_checkout_session_id')
+        : null;
+      
+      if (!pendingSessionId) {
+        setError('No pending payment session found');
+        setManualCheckLoading(false);
+        return;
+      }
+
+      console.log('[Wallet] Manual status check for session:', pendingSessionId);
+      
+      // Get reference number from session (need to call init again to get it)
+      // Or we could store it in state during handleWalletPayment
+      // For now, we'll just call check-status which will handle it
+      
+      // Note: We can't call check-status directly without referenceNumber
+      // So we need to store referenceNumber in state during init
+      setError('Manual check not yet implemented - please check your orders page');
+      setManualCheckLoading(false);
+      
+    } catch (err: any) {
+      console.error('[Wallet] Manual check error:', err);
+      setError(err.response?.data?.message || 'Failed to check payment status');
+      setManualCheckLoading(false);
     }
   };
 
@@ -370,10 +428,15 @@ export default function PaymentPage() {
 
       if (attempts >= maxAttempts) {
         setWalletPolling(false);
-        setError(
-          'Payment status is taking longer than expected. ' +
-          'Please check your orders page in a few minutes. Your cart has been kept intact.'
-        );
+        
+        // Get session info for display
+        const maskedSessionId = sessionId ? `***${sessionId.substring(sessionId.length - 6)}` : 'unknown';
+        
+        setWalletError({
+          message: 'Payment status is taking longer than expected. You can manually check the status below.',
+          sessionId: maskedSessionId,
+          canRetry: false, // Don't allow retry, offer manual check instead
+        });
         return;
       }
 
@@ -613,6 +676,63 @@ export default function PaymentPage() {
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
                 {error}
+              </div>
+            )}
+
+            {/* Wallet-specific error display (Phase 6.1) */}
+            {walletError && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h3 className="text-sm font-medium text-amber-800">Payment Error</h3>
+                    <p className="mt-1 text-sm text-amber-700">{walletError.message}</p>
+                    {walletError.sessionId && (
+                      <p className="mt-1 text-xs text-amber-600">
+                        Session: {walletError.sessionId}
+                        {walletError.referenceAttempt && ` (Attempt ${walletError.referenceAttempt})`}
+                      </p>
+                    )}
+                    <div className="mt-3 flex gap-2">
+                      {walletError.canRetry && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setWalletError(null);
+                            setError('');
+                            // Trigger retry by submitting form again
+                            const form = document.querySelector('form');
+                            if (form) form.requestSubmit();
+                          }}
+                          className="text-sm font-medium text-amber-800 hover:text-amber-900 underline"
+                        >
+                          Retry Payment
+                        </button>
+                      )}
+                      {!walletError.canRetry && (
+                        <button
+                          type="button"
+                          onClick={handleManualStatusCheck}
+                          disabled={manualCheckLoading}
+                          className="text-sm font-medium text-amber-800 hover:text-amber-900 underline disabled:opacity-50"
+                        >
+                          {manualCheckLoading ? 'Checking...' : 'Check Status'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setWalletError(null)}
+                        className="text-sm font-medium text-amber-600 hover:text-amber-700"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 

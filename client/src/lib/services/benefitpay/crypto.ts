@@ -82,9 +82,12 @@ export function generateStatusCheckSignature(
 
 /**
  * Validates that all required environment variables are present
- * Uses the same BENEFIT credentials as the Payment Gateway
+ * 
+ * DEPRECATED: Use validateWalletCredentials from @/lib/services/benefitpay_wallet/config instead.
+ * This function is kept for backward compatibility only.
  * 
  * @throws Error if any required variable is missing
+ * @deprecated
  */
 export function validateWalletCredentials(): {
   merchantId: string;
@@ -93,113 +96,8 @@ export function validateWalletCredentials(): {
   clientId?: string;
   checkStatusUrl: string;
 } {
-  // Use the same BENEFIT credentials as Payment Gateway
-  // Map PG credentials to wallet format:
-  // - TRANPORTAL_ID -> merchantId
-  // - TRANPORTAL_PASSWORD -> appId (MUST be different from merchantId)
-  // - RESOURCE_KEY -> secretKey
-  const tranportalId = process.env.BENEFIT_TRANPORTAL_ID;
-  const tranportalPassword = process.env.BENEFIT_TRANPORTAL_PASSWORD;
-  const resourceKey = process.env.BENEFIT_RESOURCE_KEY;
-  const benefitEndpoint = process.env.BENEFIT_ENDPOINT;
-  const eazypayMerchantId = process.env.EAZYPAY_MERCHANT_ID; // EazyPay merchant ID (3186)
-  const eazypayCheckoutAppId = process.env.EAZYPAY_CHECKOUT_APP_ID; // EazyPay checkout app ID (1988588907)
-  
-  // Try wallet-specific credentials first, then EazyPay merchant ID, then fallback to PG credentials
-  // Priority: BENEFITPAY_WALLET_MERCHANT_ID > EAZYPAY_MERCHANT_ID > BENEFIT_TRANPORTAL_ID
-  const merchantId = process.env.BENEFITPAY_WALLET_MERCHANT_ID || eazypayMerchantId || tranportalId;
-  
-  // App ID priority: BENEFITPAY_WALLET_APP_ID > EAZYPAY_CHECKOUT_APP_ID > BENEFIT_TRANPORTAL_PASSWORD > hardcoded fallback
-  // CRITICAL: Must use EAZYPAY_CHECKOUT_APP_ID=1988588907, NOT BENEFIT_TRANPORTAL_PASSWORD=30021462
-  let appId = process.env.BENEFITPAY_WALLET_APP_ID || eazypayCheckoutAppId || tranportalPassword;
-  // If appId is missing or same as merchantId, use the correct App ID: 1988588907
-  if (!appId || appId === merchantId) {
-    console.warn('[BenefitPay Wallet] App ID is missing or same as Merchant ID. Using correct App ID: 1988588907');
-    appId = '1988588907';
-  }
-  const secretKey = process.env.BENEFITPAY_WALLET_SECRET_KEY || resourceKey;
-  const clientId = process.env.BENEFITPAY_WALLET_CLIENT_ID; // Optional
-  
-  // Check-status URL: Use wallet-specific, or correct test URL, or construct from endpoint
-  // CRITICAL: Must use https://api.test-benefitpay.bh/web/v1/merchant/transaction/check-status
-  const checkStatusUrl = process.env.BENEFITPAY_WALLET_CHECK_STATUS_URL || 
-    'https://api.test-benefitpay.bh/web/v1/merchant/transaction/check-status';
-
-  // Log which credentials are being used (for debugging)
-  console.log('[BenefitPay Wallet] Credentials source:', {
-    merchantId: merchantId || 'MISSING',
-    appId: appId || 'MISSING',
-    secretKey: secretKey ? 'SET' : 'MISSING',
-    checkStatusUrl: checkStatusUrl || 'MISSING',
-    envVars: {
-      BENEFIT_TRANPORTAL_ID: tranportalId || 'NOT SET',
-      BENEFIT_TRANPORTAL_PASSWORD: tranportalPassword ? 'SET' : 'NOT SET',
-      BENEFIT_RESOURCE_KEY: resourceKey ? 'SET' : 'NOT SET',
-      EAZYPAY_MERCHANT_ID: eazypayMerchantId || 'NOT SET',
-      EAZYPAY_CHECKOUT_APP_ID: eazypayCheckoutAppId || 'NOT SET (SHOULD BE 1988588907!)',
-      BENEFITPAY_WALLET_APP_ID: process.env.BENEFITPAY_WALLET_APP_ID || 'NOT SET',
-    },
-    usingWalletSpecific: {
-      merchantId: !!process.env.BENEFITPAY_WALLET_MERCHANT_ID,
-      appId: !!process.env.BENEFITPAY_WALLET_APP_ID,
-      secretKey: !!process.env.BENEFITPAY_WALLET_SECRET_KEY,
-    },
-    usingEazyPayCredentials: {
-      merchantId: !process.env.BENEFITPAY_WALLET_MERCHANT_ID && !!eazypayMerchantId,
-      appId: !process.env.BENEFITPAY_WALLET_APP_ID && !!eazypayCheckoutAppId,
-    },
-    usingPGFallback: {
-      merchantId: !process.env.BENEFITPAY_WALLET_MERCHANT_ID && !eazypayMerchantId && !!tranportalId,
-      appId: !process.env.BENEFITPAY_WALLET_APP_ID && !eazypayCheckoutAppId && !!tranportalPassword,
-      secretKey: !process.env.BENEFITPAY_WALLET_SECRET_KEY && !!resourceKey,
-    },
-  });
-  
-  // Critical validation: App ID must be 1988588907
-  if (appId !== '1988588907') {
-    console.error('[BenefitPay Wallet] CRITICAL ERROR: App ID is', appId, 'but should be 1988588907!');
-    console.error('[BenefitPay Wallet] Set EAZYPAY_CHECKOUT_APP_ID=1988588907 in .env.local');
-  }
-  
-  // Critical validation: Merchant ID should be 3186
-  if (merchantId !== '3186' && merchantId !== eazypayMerchantId) {
-    console.warn('[BenefitPay Wallet] WARNING: Merchant ID is', merchantId, 'expected 3186 from EAZYPAY_MERCHANT_ID');
-  }
-  
-  // Warn if appId is missing or same as merchantId
-  if (!appId) {
-    console.error('[BenefitPay Wallet] ERROR: App ID is missing!');
-    console.error('[BenefitPay Wallet] Set BENEFIT_TRANPORTAL_PASSWORD=1988588907 in .env.local');
-  } else if (appId === merchantId) {
-    console.warn('[BenefitPay Wallet] WARNING: App ID is same as Merchant ID!');
-    console.warn('[BenefitPay Wallet] App ID should be different. Set BENEFIT_TRANPORTAL_PASSWORD=1988588907 in .env.local');
-  }
-
-  if (!merchantId || !appId || !secretKey) {
-    const missing = [];
-    if (!merchantId) missing.push('BENEFITPAY_WALLET_MERCHANT_ID or BENEFIT_TRANPORTAL_ID');
-    if (!appId) {
-      missing.push('BENEFITPAY_WALLET_APP_ID or BENEFIT_TRANPORTAL_PASSWORD (App ID: 1988588907)');
-      console.error('[BenefitPay Wallet] App ID is missing! Set BENEFIT_TRANPORTAL_PASSWORD=1988588907 in .env.local');
-    }
-    if (!secretKey) missing.push('BENEFITPAY_WALLET_SECRET_KEY or BENEFIT_RESOURCE_KEY');
-    
-    throw new Error(
-      `Missing required BenefitPay Wallet credentials: ${missing.join(', ')}. ` +
-      'Please set BENEFIT_TRANPORTAL_ID, BENEFIT_TRANPORTAL_PASSWORD (App ID: 1988588907), and BENEFIT_RESOURCE_KEY, ' +
-      'or set wallet-specific credentials (BENEFITPAY_WALLET_*).'
-    );
-  }
-
-  // Check-status URL is already set above
-  // Using: https://api.test-benefitpay.bh/web/v1/merchant/transaction/check-status
-
-  return {
-    merchantId,
-    appId,
-    secretKey,
-    clientId,
-    checkStatusUrl,
-  };
+  // Import the new config module
+  const { validateWalletCredentials: validateNew } = require('@/lib/services/benefitpay_wallet/config');
+  return validateNew();
 }
 
