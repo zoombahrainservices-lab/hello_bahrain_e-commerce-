@@ -128,9 +128,14 @@ export async function POST(request: NextRequest) {
     };
 
     console.log('[BenefitPay Wallet Init] SDK parameters (before hash):', {
-      ...sdkParams,
-      merchantId: '***',
-      appId: '***',
+      merchantId: credentials.merchantId,
+      appId: credentials.appId,
+      transactionAmount: sdkParams.transactionAmount,
+      transactionCurrency: sdkParams.transactionCurrency,
+      referenceNumber: sdkParams.referenceNumber,
+      showResult: sdkParams.showResult,
+      hideMobileQR: sdkParams.hideMobileQR,
+      qr_timeout: sdkParams.qr_timeout,
     });
 
     // Generate secure hash server-side

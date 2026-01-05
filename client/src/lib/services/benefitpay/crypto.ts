@@ -98,6 +98,23 @@ export function validateWalletCredentials(): {
   const checkStatusUrl = process.env.BENEFITPAY_WALLET_CHECK_STATUS_URL || 
     (benefitEndpoint ? `${benefitEndpoint.replace('/web/v1/merchant/transaction/init', '')}/web/v1/merchant/transaction/check-status` : undefined);
 
+  // Log which credentials are being used (for debugging)
+  console.log('[BenefitPay Wallet] Credentials source:', {
+    merchantId: merchantId ? `${merchantId.substring(0, 4)}...` : 'MISSING',
+    appId: appId ? `${appId.substring(0, 4)}...` : 'MISSING',
+    secretKey: secretKey ? 'SET' : 'MISSING',
+    usingWalletSpecific: {
+      merchantId: !!process.env.BENEFITPAY_WALLET_MERCHANT_ID,
+      appId: !!process.env.BENEFITPAY_WALLET_APP_ID,
+      secretKey: !!process.env.BENEFITPAY_WALLET_SECRET_KEY,
+    },
+    usingPGFallback: {
+      merchantId: !process.env.BENEFITPAY_WALLET_MERCHANT_ID && !!tranportalId,
+      appId: !process.env.BENEFITPAY_WALLET_APP_ID && !!tranportalPassword,
+      secretKey: !process.env.BENEFITPAY_WALLET_SECRET_KEY && !!resourceKey,
+    },
+  });
+
   if (!merchantId || !appId || !secretKey) {
     const missing = [];
     if (!merchantId) missing.push('BENEFITPAY_WALLET_MERCHANT_ID or BENEFIT_TRANPORTAL_ID');

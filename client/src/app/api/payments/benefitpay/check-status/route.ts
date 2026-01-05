@@ -143,7 +143,8 @@ export async function POST(request: NextRequest) {
 
     console.log('[BenefitPay Check Status] Calling BenefitPay API:', {
       url: credentials.checkStatusUrl,
-      merchant_id: '***',
+      merchant_id: credentials.merchantId,
+      app_id: credentials.appId,
       reference_id: referenceNumber,
     });
 
