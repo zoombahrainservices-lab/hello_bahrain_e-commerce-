@@ -4,12 +4,14 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { useCart } from '@/contexts/CartContext';
 
 type Status = 'loading' | 'success' | 'failed';
 
 function BenefitResponsePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { clearCart } = useCart();
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState('Processing payment...');
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -45,6 +47,22 @@ function BenefitResponsePageContent() {
             setStatus('success');
             setMessage('Payment successful! Thank you for your purchase.');
             setTransactionDetails(data.transactionDetails);
+            
+            // Clear cart after successful payment
+            try {
+              clearCart();
+            } catch (error) {
+              console.error('Error clearing cart:', error);
+              // Don't block the success flow if cart clearing fails
+            }
+            
+            // Store recent order info for redirect detection (similar to other payment methods)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('hb_recent_order', JSON.stringify({
+                orderId: orderIdParam || null,
+                timestamp: Date.now(),
+              }));
+            }
           } else {
             setStatus('failed');
             setMessage(data.message || 'Payment was not completed.');
@@ -66,6 +84,22 @@ function BenefitResponsePageContent() {
               ref: order.benefit_ref,
               authRespCode: order.benefit_auth_resp_code,
             });
+            
+            // Clear cart after successful payment
+            try {
+              clearCart();
+            } catch (error) {
+              console.error('Error clearing cart:', error);
+              // Don't block the success flow if cart clearing fails
+            }
+            
+            // Store recent order info for redirect detection (similar to other payment methods)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('hb_recent_order', JSON.stringify({
+                orderId: orderIdParam || null,
+                timestamp: Date.now(),
+              }));
+            }
           } else if (order && (order.paymentStatus === 'failed' || order.payment_status === 'failed')) {
             setStatus('failed');
             setMessage('Payment was not completed.');
@@ -83,7 +117,7 @@ function BenefitResponsePageContent() {
     };
 
     processResponse();
-  }, [searchParams]);
+  }, [searchParams, clearCart]);
 
   if (status === 'loading') {
     return (
@@ -134,7 +168,7 @@ function BenefitResponsePageContent() {
                 Try Again
               </Link>
               <Link
-                href="/orders"
+                href="/profile/orders"
                 className="flex-1 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition text-center font-semibold"
               >
                 View Orders
@@ -220,7 +254,7 @@ function BenefitResponsePageContent() {
 
           <div className="flex gap-4">
             <Link
-              href="/orders"
+              href="/profile/orders"
               className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition text-center font-semibold"
             >
               View My Orders
@@ -256,4 +290,5 @@ export default function BenefitResponseClient() {
     </Suspense>
   );
 }
+
 
