@@ -75,10 +75,11 @@ export async function POST(request: NextRequest) {
 
     if (!sessionId) {
       return cors.addHeaders(
-        NextResponse.json(
-          { message: 'Session ID is required' },
-          { status: 400 }
-        ),
+        NextResponse.json({
+          ok: false,
+          error: 'BENEFITPAY_MISSING_SESSION_ID',
+          message: 'Session ID is required',
+        }, { status: 400 }),
         request
       );
     }
@@ -89,11 +90,31 @@ export async function POST(request: NextRequest) {
       credentials = validateWalletCredentials();
     } catch (error: any) {
       console.error('[BenefitPay Wallet Init] Credentials validation failed:', error.message);
+      console.error('[BenefitPay Wallet Init] Full error:', error);
+      
+      // Parse missing env vars from error message
+      const missingVars: string[] = [];
+      const match = error.message.match(/missing or invalid: ([^.]+)/);
+      if (match) {
+        missingVars.push(...match[1].split(', ').map((s: string) => s.trim()));
+      }
+      
+      // Return structured error with details
+      const isDevelopment = process.env.NODE_ENV === 'development';
       return cors.addHeaders(
-        NextResponse.json(
-          { message: 'BenefitPay Wallet is not properly configured' },
-          { status: 500 }
-        ),
+        NextResponse.json({
+          ok: false,
+          error: 'BENEFITPAY_CREDENTIALS_MISSING',
+          message: isDevelopment 
+            ? error.message 
+            : 'BenefitPay Wallet is not properly configured. Please contact support.',
+          ...(isDevelopment && missingVars.length > 0 && {
+            details: {
+              missingEnvVars: missingVars,
+              hint: 'Set these environment variables in Vercel dashboard under Settings > Environment Variables',
+            }
+          }),
+        }, { status: 500 }),
         request
       );
     }
@@ -108,11 +129,17 @@ export async function POST(request: NextRequest) {
 
     if (sessionError || !session) {
       console.error('[BenefitPay Wallet Init] Session not found:', sessionError?.message);
+      console.error('[BenefitPay Wallet Init] Session lookup details:', {
+        sessionId,
+        userId: authResult.user.id,
+        error: sessionError,
+      });
       return cors.addHeaders(
-        NextResponse.json(
-          { message: 'Checkout session not found or unauthorized' },
-          { status: 404 }
-        ),
+        NextResponse.json({
+          ok: false,
+          error: 'BENEFITPAY_SESSION_NOT_FOUND',
+          message: 'Checkout session not found or unauthorized',
+        }, { status: 404 }),
         request
       );
     }
@@ -121,10 +148,11 @@ export async function POST(request: NextRequest) {
     if (session.status !== 'initiated') {
       console.error('[BenefitPay Wallet Init] Invalid session status:', session.status);
       return cors.addHeaders(
-        NextResponse.json(
-          { message: `Cannot initialize payment for session with status: ${session.status}` },
-          { status: 400 }
-        ),
+        NextResponse.json({
+          ok: false,
+          error: 'BENEFITPAY_INVALID_SESSION_STATUS',
+          message: `Cannot initialize payment for session with status: ${session.status}`,
+        }, { status: 400 }),
         request
       );
     }
@@ -242,11 +270,17 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error('[BenefitPay Wallet Init] Failed to update session:', updateError);
+      console.error('[BenefitPay Wallet Init] Update error details:', {
+        sessionId,
+        referenceNumber,
+        error: updateError,
+      });
       return cors.addHeaders(
-        NextResponse.json(
-          { message: 'Failed to update checkout session' },
-          { status: 500 }
-        ),
+        NextResponse.json({
+          ok: false,
+          error: 'BENEFITPAY_SESSION_UPDATE_FAILED',
+          message: 'Failed to update checkout session',
+        }, { status: 500 }),
         request
       );
     }
@@ -255,6 +289,7 @@ export async function POST(request: NextRequest) {
 
     return cors.addHeaders(
       NextResponse.json({
+        ok: true,
         success: true,
         signedParams,
         referenceNumber,
@@ -263,11 +298,22 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error('[BenefitPay Wallet Init] Unexpected error:', error);
+    console.error('[BenefitPay Wallet Init] Error stack:', error.stack);
+    
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
     return cors.addHeaders(
-      NextResponse.json(
-        { message: error.message || 'Failed to initialize wallet payment' },
-        { status: 500 }
-      ),
+      NextResponse.json({
+        ok: false,
+        error: 'BENEFITPAY_INIT_FAILED',
+        message: error.message || 'Failed to initialize wallet payment',
+        ...(isDevelopment && {
+          details: {
+            stack: error.stack,
+            name: error.name,
+          }
+        }),
+      }, { status: 500 }),
       request
     );
   }

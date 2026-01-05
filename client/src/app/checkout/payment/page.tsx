@@ -75,9 +75,45 @@ export default function PaymentPage() {
     canRetry?: boolean;
   } | null>(null);
   const [manualCheckLoading, setManualCheckLoading] = useState(false);
+  
+  // Wallet configuration check
+  const [walletConfigured, setWalletConfigured] = useState<boolean | null>(null);
+  const [walletConfigError, setWalletConfigError] = useState<string | null>(null);
 
   // Note: EazyPay Checkout now uses server-side invoice creation and redirect
   // No need to load Checkout.js script anymore
+  
+  // Check wallet configuration on mount
+  useEffect(() => {
+    const checkWalletConfig = async () => {
+      try {
+        console.log('[Wallet Config] Checking BenefitPay Wallet configuration...');
+        const response = await api.get('/api/payments/benefitpay/check-config');
+        const data = response.data;
+        
+        setWalletConfigured(data.configured);
+        
+        if (!data.configured) {
+          const missingVars = data.missing || [];
+          console.warn('[Wallet Config] BenefitPay Wallet not configured. Missing:', missingVars);
+          setWalletConfigError(
+            missingVars.length > 0 
+              ? `Missing configuration: ${missingVars.join(', ')}`
+              : 'BenefitPay Wallet is not configured'
+          );
+        } else {
+          console.log('[Wallet Config] ✓ BenefitPay Wallet is configured');
+          setWalletConfigError(null);
+        }
+      } catch (error: any) {
+        console.error('[Wallet Config] Error checking configuration:', error);
+        setWalletConfigured(false);
+        setWalletConfigError('Unable to verify BenefitPay Wallet configuration');
+      }
+    };
+
+    checkWalletConfig();
+  }, []);
   
   // Load jQuery and BenefitPay Wallet SDK when needed
   useEffect(() => {
@@ -327,21 +363,62 @@ export default function PaymentPage() {
     } catch (err: any) {
       console.error('[Wallet] Payment error:', err);
       setWalletProcessing(false);
-      const backendMessage = err.response?.data?.message || err.message;
       
-      // Make sure error message is clearly about BenefitPay Wallet
+      const errorResponse = err.response?.data;
+      const errorCode = errorResponse?.error;
+      const errorMessage = errorResponse?.message || err.message;
+      const errorDetails = errorResponse?.details;
+      
+      console.error('[Wallet] Error details:', {
+        errorCode,
+        errorMessage,
+        errorDetails,
+        fullResponse: errorResponse,
+      });
+      
+      // Handle specific error codes
       let errorMsg = 'BenefitPay Wallet payment failed';
-      if (backendMessage) {
-        if (backendMessage.includes('credentials')) {
+      let canRetry = true;
+      
+      if (errorCode === 'BENEFITPAY_CREDENTIALS_MISSING') {
+        errorMsg = 'BenefitPay Wallet is not properly configured. Please contact support.';
+        canRetry = false;
+        
+        // Log missing credentials for debugging
+        if (errorDetails?.missingEnvVars && Array.isArray(errorDetails.missingEnvVars)) {
+          console.error('[Wallet] Missing environment variables:', errorDetails.missingEnvVars.join(', '));
+          
+          // In development, show more details
+          if (process.env.NODE_ENV === 'development') {
+            errorMsg += ` (Missing: ${errorDetails.missingEnvVars.join(', ')})`;
+          }
+        }
+      } else if (errorCode === 'BENEFITPAY_SESSION_NOT_FOUND') {
+        errorMsg = 'Checkout session not found. Please try again from the cart.';
+        canRetry = false;
+      } else if (errorCode === 'BENEFITPAY_INVALID_SESSION_STATUS') {
+        errorMsg = 'This checkout session is no longer valid. Please start a new checkout.';
+        canRetry = false;
+      } else if (errorCode === 'BENEFITPAY_SESSION_UPDATE_FAILED') {
+        errorMsg = 'Failed to save payment information. Please try again.';
+        canRetry = true;
+      } else if (errorCode === 'BENEFITPAY_INIT_FAILED') {
+        errorMsg = errorMessage || 'Failed to initialize payment. Please try again.';
+        canRetry = true;
+      } else if (errorMessage) {
+        // Generic error with message from backend
+        if (errorMessage.includes('credentials')) {
           errorMsg = 'BenefitPay Wallet is not properly configured. Please contact support.';
+          canRetry = false;
         } else {
-          errorMsg = `BenefitPay Wallet: ${backendMessage}`;
+          errorMsg = `BenefitPay Wallet: ${errorMessage}`;
+          canRetry = true;
         }
       }
       
       setWalletError({
         message: errorMsg,
-        canRetry: true, // Allow retry for initialization errors
+        canRetry,
       });
     }
   };
@@ -595,6 +672,12 @@ export default function PaymentPage() {
     if (!shipping) return;
     setError('');
 
+    // Validate wallet configuration if wallet payment is selected
+    if (paymentMethod === 'benefitpay_wallet' && walletConfigured === false) {
+      setError('BenefitPay Wallet is currently unavailable. Please select a different payment method or contact support.');
+      return;
+    }
+
     // Validate stock again before finalizing
     const stockIssues = items.filter(
       (item) => item.stockQuantity !== undefined && item.quantity > item.stockQuantity
@@ -764,18 +847,33 @@ export default function PaymentPage() {
                   </div>
                 </label>
 
-                <label className="flex items-center border rounded-lg px-4 py-3 cursor-pointer hover:border-primary-400 transition">
+                <label className={`flex items-center border rounded-lg px-4 py-3 transition ${
+                  walletConfigured === false 
+                    ? 'opacity-50 cursor-not-allowed bg-gray-50' 
+                    : 'cursor-pointer hover:border-primary-400'
+                }`}>
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="benefitpay_wallet"
                     checked={paymentMethod === 'benefitpay_wallet'}
                     onChange={() => setPaymentMethod('benefitpay_wallet')}
+                    disabled={walletConfigured === false}
                     className="mr-3"
                   />
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium">BenefitPay</p>
                     <p className="text-xs text-gray-500">Pay quickly using Bahrain&apos;s BenefitPay app.</p>
+                    {walletConfigured === false && (
+                      <p className="text-xs text-red-600 mt-1">
+                        ⚠️ Currently unavailable. Please contact support.
+                      </p>
+                    )}
+                    {walletConfigured === null && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Checking availability...
+                      </p>
+                    )}
                   </div>
                 </label>
 
