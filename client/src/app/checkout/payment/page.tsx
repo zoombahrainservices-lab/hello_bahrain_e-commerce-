@@ -238,7 +238,18 @@ export default function PaymentPage() {
 
       console.log('[Wallet] Signed parameters received, opening SDK...');
 
-      // Step 2: Open InApp SDK
+      // Step 2: Log exact parameters being sent to SDK (for debugging)
+      console.log('[BenefitPay] InApp params (exact payload):', JSON.stringify(signedParams, null, 2));
+      console.log('[BenefitPay] InApp params verification:');
+      console.log('[BenefitPay] - merchantId:', signedParams.merchantId, '(expected: 3186 from EAZYPAY_MERCHANT_ID)');
+      console.log('[BenefitPay] - appId:', signedParams.appId, '(expected: 1988588907)');
+      console.log('[BenefitPay] - transactionAmount:', signedParams.transactionAmount, '(should be string like "2.000")');
+      console.log('[BenefitPay] - transactionCurrency:', signedParams.transactionCurrency, '(should be exactly "BHD")');
+      console.log('[BenefitPay] - referenceNumber:', signedParams.referenceNumber);
+      console.log('[BenefitPay] - secure_hash present:', !!signedParams.secure_hash);
+      console.log('[BenefitPay] - secure_hash length:', signedParams.secure_hash?.length || 0);
+
+      // Step 3: Open InApp SDK
       if (!window.InApp || !window.jQuery) {
         throw new Error('BenefitPay Wallet SDK is still loading. Please wait a moment and try again.');
       }
@@ -248,15 +259,27 @@ export default function PaymentPage() {
         // Success callback - SDK success does NOT mean payment success
         async (result: any) => {
           console.log('[Wallet] SDK success callback:', result);
+          console.log('[Wallet] SDK success callback (full):', JSON.stringify(result, null, 2));
           setWalletProcessing(false);
           // Start polling for payment status
           await pollPaymentStatus(referenceNumber, sessionId);
         },
-        // Error callback
+        // Error callback - Enhanced logging
         (error: any) => {
           console.error('[Wallet] SDK error callback:', error);
+          console.error('[Wallet] SDK error callback (full):', JSON.stringify(error, null, 2));
+          if (error?.errorCode) {
+            console.error('[BenefitPay] Error Code:', error.errorCode);
+          }
+          if (error?.errorDescription) {
+            console.error('[BenefitPay] Error Description:', error.errorDescription);
+          }
+          if (error?.message) {
+            console.error('[BenefitPay] Error Message:', error.message);
+          }
           setWalletProcessing(false);
-          setError('BenefitPay Wallet payment failed. Please try again.');
+          const errorMsg = error?.errorDescription || error?.message || 'BenefitPay Wallet payment failed. Please try again.';
+          setError(errorMsg);
         },
         // Close callback
         async () => {

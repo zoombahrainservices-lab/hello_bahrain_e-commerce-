@@ -166,7 +166,23 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(statusParams),
     });
 
-    const responseData = await response.json();
+    // Check if response is JSON or HTML (error case)
+    const contentType = response.headers.get('content-type');
+    let responseData: any;
+    
+    if (contentType && contentType.includes('application/json')) {
+      responseData = await response.json();
+    } else {
+      // Response is HTML (likely an error page)
+      const htmlText = await response.text();
+      console.error('[BenefitPay Check Status] Received HTML instead of JSON:', htmlText.substring(0, 500));
+      console.error('[BenefitPay Check Status] Check-status URL might be incorrect:', credentials.checkStatusUrl);
+      throw new Error(
+        `Invalid response from BenefitPay API. Expected JSON but received HTML. ` +
+        `URL: ${credentials.checkStatusUrl}. ` +
+        `Please verify the check-status URL is correct: https://api.test-benefitpay.bh/web/v1/merchant/transaction/check-status`
+      );
+    }
 
     console.log('[BenefitPay Check Status] API response:', {
       status: response.status,

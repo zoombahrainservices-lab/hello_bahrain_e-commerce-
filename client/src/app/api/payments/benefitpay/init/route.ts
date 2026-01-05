@@ -113,39 +113,67 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique reference number
+    // Format: HB_<sessionId_no_dashes>_<timestamp>
+    // This ensures uniqueness even if user retries the same session
     const referenceNumber = `HB_${sessionId.replace(/-/g, '').substring(0, 20)}_${Date.now()}`;
 
     // Build SDK parameters
-    const sdkParams: Record<string, string | number> = {
-      merchantId: credentials.merchantId,
-      appId: credentials.appId,
-      transactionAmount: Number(session.total).toFixed(3), // BHD format with 3 decimals
-      transactionCurrency: 'BHD',
-      referenceNumber: referenceNumber,
-      showResult: showResult ? '1' : '0',
-      hideMobileQR: hideMobileQR ? '1' : '0',
-      qr_timeout: qr_timeout,
+    // IMPORTANT: All values must be strings for hash calculation
+    // Expected format: appId="1988588907",merchantId="30021462",referenceNumber="HB_xxx",transactionAmount="2.000",transactionCurrency="BHD"
+    const sdkParams: Record<string, string> = {
+      merchantId: String(credentials.merchantId), // Ensure it's a string
+      appId: String(credentials.appId), // Ensure it's a string (should be "1988588907")
+      transactionAmount: Number(session.total).toFixed(3), // BHD format with 3 decimals as string "2.000"
+      transactionCurrency: 'BHD', // Must be exactly "BHD"
+      referenceNumber: referenceNumber, // Unique reference number
+      showResult: showResult ? '1' : '0', // String "1" or "0"
+      hideMobileQR: hideMobileQR ? '1' : '0', // String "1" or "0"
+      qr_timeout: String(qr_timeout), // Convert to string
     };
 
-    console.log('[BenefitPay Wallet Init] SDK parameters (before hash):', {
-      merchantId: credentials.merchantId,
-      appId: credentials.appId,
-      transactionAmount: sdkParams.transactionAmount,
-      transactionCurrency: sdkParams.transactionCurrency,
-      referenceNumber: sdkParams.referenceNumber,
-      showResult: sdkParams.showResult,
-      hideMobileQR: sdkParams.hideMobileQR,
-      qr_timeout: sdkParams.qr_timeout,
-    });
+    // Comprehensive logging before hash calculation
+    console.log('[BenefitPay Wallet Init] SDK parameters (before hash):');
+    console.log('[BenefitPay Wallet Init] - merchantId:', sdkParams.merchantId, '(expected: 3186 from EAZYPAY_MERCHANT_ID)');
+    console.log('[BenefitPay Wallet Init] - appId:', sdkParams.appId, '(should be 1988588907)');
+    console.log('[BenefitPay Wallet Init] - transactionAmount:', sdkParams.transactionAmount, '(should be string like "2.000")');
+    console.log('[BenefitPay Wallet Init] - transactionCurrency:', sdkParams.transactionCurrency, '(should be exactly "BHD")');
+    console.log('[BenefitPay Wallet Init] - referenceNumber:', sdkParams.referenceNumber);
+    console.log('[BenefitPay Wallet Init] - showResult:', sdkParams.showResult);
+    console.log('[BenefitPay Wallet Init] - hideMobileQR:', sdkParams.hideMobileQR);
+    console.log('[BenefitPay Wallet Init] - qr_timeout:', sdkParams.qr_timeout);
+    
+    // Validate critical values
+    const expectedMerchantIds = ['3186', '30021462', process.env.BENEFIT_TRANPORTAL_ID, process.env.EAZYPAY_MERCHANT_ID].filter(Boolean);
+    if (!expectedMerchantIds.includes(sdkParams.merchantId)) {
+      console.warn('[BenefitPay Wallet Init] WARNING: merchantId might be incorrect. Expected one of:', expectedMerchantIds.join(', '), 'Got:', sdkParams.merchantId);
+    } else {
+      console.log('[BenefitPay Wallet Init] ✓ merchantId validated:', sdkParams.merchantId);
+    }
+    if (sdkParams.appId !== '1988588907') {
+      console.warn('[BenefitPay Wallet Init] WARNING: appId might be incorrect. Expected: 1988588907');
+    }
+    if (sdkParams.transactionCurrency !== 'BHD') {
+      console.error('[BenefitPay Wallet Init] ERROR: transactionCurrency must be exactly "BHD"');
+    }
 
     // Generate secure hash server-side
+    // The hash calculation will exclude 'secure_hash', 'lang', and 'hashedString' from the calculation
     const secureHash = generateSecureHash(sdkParams, credentials.secretKey);
 
-    // Add hash to parameters
+    // Add hash to parameters (secure_hash is NOT included in hash calculation itself)
     const signedParams = {
       ...sdkParams,
       secure_hash: secureHash,
     };
+
+    // Log final parameters being sent to SDK
+    console.log('[BenefitPay Wallet Init] Final signed parameters (for SDK):');
+    console.log('[BenefitPay Wallet Init] - merchantId:', signedParams.merchantId);
+    console.log('[BenefitPay Wallet Init] - appId:', signedParams.appId);
+    console.log('[BenefitPay Wallet Init] - transactionAmount:', signedParams.transactionAmount);
+    console.log('[BenefitPay Wallet Init] - transactionCurrency:', signedParams.transactionCurrency);
+    console.log('[BenefitPay Wallet Init] - referenceNumber:', signedParams.referenceNumber);
+    console.log('[BenefitPay Wallet Init] - secure_hash (first 50 chars):', signedParams.secure_hash.substring(0, 50) + '...');
 
     // Store reference number in checkout session for later verification
     const { error: updateError } = await getSupabase()
