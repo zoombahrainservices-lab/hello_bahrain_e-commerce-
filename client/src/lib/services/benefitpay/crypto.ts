@@ -83,7 +83,7 @@ export function validateWalletCredentials(): {
   // Use the same BENEFIT credentials as Payment Gateway
   // Map PG credentials to wallet format:
   // - TRANPORTAL_ID -> merchantId
-  // - TRANPORTAL_PASSWORD -> appId (or use TRANPORTAL_ID if appId not available)
+  // - TRANPORTAL_PASSWORD -> appId (MUST be different from merchantId)
   // - RESOURCE_KEY -> secretKey
   const tranportalId = process.env.BENEFIT_TRANPORTAL_ID;
   const tranportalPassword = process.env.BENEFIT_TRANPORTAL_PASSWORD;
@@ -92,7 +92,9 @@ export function validateWalletCredentials(): {
   
   // Try wallet-specific credentials first, fallback to PG credentials
   const merchantId = process.env.BENEFITPAY_WALLET_MERCHANT_ID || tranportalId;
-  const appId = process.env.BENEFITPAY_WALLET_APP_ID || tranportalPassword || tranportalId;
+  // App ID should be TRANPORTAL_PASSWORD, NOT TRANPORTAL_ID
+  // If password is not set, we should NOT fallback to ID (they are different!)
+  const appId = process.env.BENEFITPAY_WALLET_APP_ID || tranportalPassword;
   const secretKey = process.env.BENEFITPAY_WALLET_SECRET_KEY || resourceKey;
   const clientId = process.env.BENEFITPAY_WALLET_CLIENT_ID; // Optional
   const checkStatusUrl = process.env.BENEFITPAY_WALLET_CHECK_STATUS_URL || 
@@ -100,9 +102,15 @@ export function validateWalletCredentials(): {
 
   // Log which credentials are being used (for debugging)
   console.log('[BenefitPay Wallet] Credentials source:', {
-    merchantId: merchantId ? `${merchantId.substring(0, 4)}...` : 'MISSING',
-    appId: appId ? `${appId.substring(0, 4)}...` : 'MISSING',
+    merchantId: merchantId || 'MISSING',
+    appId: appId || 'MISSING',
     secretKey: secretKey ? 'SET' : 'MISSING',
+    envVars: {
+      BENEFIT_TRANPORTAL_ID: tranportalId || 'NOT SET',
+      BENEFIT_TRANPORTAL_PASSWORD: tranportalPassword ? 'SET' : 'NOT SET (THIS IS THE APP ID!)',
+      BENEFIT_RESOURCE_KEY: resourceKey ? 'SET' : 'NOT SET',
+      BENEFITPAY_WALLET_APP_ID: process.env.BENEFITPAY_WALLET_APP_ID || 'NOT SET',
+    },
     usingWalletSpecific: {
       merchantId: !!process.env.BENEFITPAY_WALLET_MERCHANT_ID,
       appId: !!process.env.BENEFITPAY_WALLET_APP_ID,
@@ -114,16 +122,28 @@ export function validateWalletCredentials(): {
       secretKey: !process.env.BENEFITPAY_WALLET_SECRET_KEY && !!resourceKey,
     },
   });
+  
+  // Warn if appId is missing or same as merchantId
+  if (!appId) {
+    console.error('[BenefitPay Wallet] ERROR: App ID is missing!');
+    console.error('[BenefitPay Wallet] Set BENEFIT_TRANPORTAL_PASSWORD=1988588907 in .env.local');
+  } else if (appId === merchantId) {
+    console.warn('[BenefitPay Wallet] WARNING: App ID is same as Merchant ID!');
+    console.warn('[BenefitPay Wallet] App ID should be different. Set BENEFIT_TRANPORTAL_PASSWORD=1988588907 in .env.local');
+  }
 
   if (!merchantId || !appId || !secretKey) {
     const missing = [];
     if (!merchantId) missing.push('BENEFITPAY_WALLET_MERCHANT_ID or BENEFIT_TRANPORTAL_ID');
-    if (!appId) missing.push('BENEFITPAY_WALLET_APP_ID or BENEFIT_TRANPORTAL_PASSWORD');
+    if (!appId) {
+      missing.push('BENEFITPAY_WALLET_APP_ID or BENEFIT_TRANPORTAL_PASSWORD (App ID: 1988588907)');
+      console.error('[BenefitPay Wallet] App ID is missing! Set BENEFIT_TRANPORTAL_PASSWORD=1988588907 in .env.local');
+    }
     if (!secretKey) missing.push('BENEFITPAY_WALLET_SECRET_KEY or BENEFIT_RESOURCE_KEY');
     
     throw new Error(
       `Missing required BenefitPay Wallet credentials: ${missing.join(', ')}. ` +
-      'Please set BENEFIT_TRANPORTAL_ID, BENEFIT_TRANPORTAL_PASSWORD, and BENEFIT_RESOURCE_KEY, ' +
+      'Please set BENEFIT_TRANPORTAL_ID, BENEFIT_TRANPORTAL_PASSWORD (App ID: 1988588907), and BENEFIT_RESOURCE_KEY, ' +
       'or set wallet-specific credentials (BENEFITPAY_WALLET_*).'
     );
   }
