@@ -204,23 +204,26 @@ export default function OrdersClient() {
                     {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                   </span>
                 </div>
-                {order.paymentMethod && (
+                {(order as Order & { paymentMethod?: string }).paymentMethod && (
                   <div>
                     <p className="text-sm text-gray-500">Payment Method</p>
                     <p className="font-medium text-sm">
-                      {order.paymentMethod === 'cod' 
-                        ? 'Cash on Delivery' 
-                        : order.paymentMethod === 'benefit' 
-                        ? 'BenefitPay' 
-                        : order.paymentMethod === 'card'
-                        ? 'Credit/Debit Card'
-                        : order.paymentMethod}
+                      {(() => {
+                        const method = (order as Order & { paymentMethod?: string }).paymentMethod;
+                        return method === 'cod' 
+                          ? 'Cash on Delivery' 
+                          : method === 'benefit' 
+                          ? 'BenefitPay' 
+                          : method === 'card'
+                          ? 'Credit/Debit Card'
+                          : method;
+                      })()}
                     </p>
                   </div>
                 )}
                 <div>
                   <p className="text-sm text-gray-500">Payment Status</p>
-                  {getPaymentStatusBadge(order.paymentStatus, order.paymentMethod)}
+                  {getPaymentStatusBadge(order.paymentStatus, (order as Order & { paymentMethod?: string }).paymentMethod)}
                 </div>
               </div>
 
