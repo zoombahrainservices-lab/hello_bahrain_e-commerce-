@@ -213,7 +213,8 @@ export async function POST(request: NextRequest) {
     const secureHash = generateSecureHashForSdk(sdkParams, credentials.secretKey);
 
     // Add hash to parameters (secure_hash is NOT included in hash calculation itself)
-    const signedParams = {
+    // Explicitly type to ensure TypeScript recognizes all properties
+    const signedParams: Record<string, string> = {
       ...sdkParams,
       secure_hash: secureHash,
     };
