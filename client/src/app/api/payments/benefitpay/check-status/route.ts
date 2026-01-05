@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate credentials
+    // Validate credentials (uses same BENEFIT credentials as PG)
     let credentials;
     try {
       credentials = validateWalletCredentials();
@@ -77,7 +77,10 @@ export async function POST(request: NextRequest) {
       console.error('[BenefitPay Check Status] Credentials validation failed:', error.message);
       return cors.addHeaders(
         NextResponse.json(
-          { message: 'BenefitPay Wallet is not properly configured' },
+          { 
+            message: 'BenefitPay Wallet is not properly configured. ' +
+                     'Please set BENEFIT_TRANPORTAL_ID, BENEFIT_TRANPORTAL_PASSWORD, and BENEFIT_RESOURCE_KEY.'
+          },
           { status: 500 }
         ),
         request

@@ -69,6 +69,7 @@ export function generateStatusCheckSignature(
 
 /**
  * Validates that all required environment variables are present
+ * Uses the same BENEFIT credentials as the Payment Gateway
  * 
  * @throws Error if any required variable is missing
  */
@@ -79,31 +80,46 @@ export function validateWalletCredentials(): {
   clientId?: string;
   checkStatusUrl: string;
 } {
-  const merchantId = process.env.BENEFITPAY_WALLET_MERCHANT_ID;
-  const appId = process.env.BENEFITPAY_WALLET_APP_ID;
-  const secretKey = process.env.BENEFITPAY_WALLET_SECRET_KEY;
+  // Use the same BENEFIT credentials as Payment Gateway
+  // Map PG credentials to wallet format:
+  // - TRANPORTAL_ID -> merchantId
+  // - TRANPORTAL_PASSWORD -> appId (or use TRANPORTAL_ID if appId not available)
+  // - RESOURCE_KEY -> secretKey
+  const tranportalId = process.env.BENEFIT_TRANPORTAL_ID;
+  const tranportalPassword = process.env.BENEFIT_TRANPORTAL_PASSWORD;
+  const resourceKey = process.env.BENEFIT_RESOURCE_KEY;
+  const benefitEndpoint = process.env.BENEFIT_ENDPOINT;
+  
+  // Try wallet-specific credentials first, fallback to PG credentials
+  const merchantId = process.env.BENEFITPAY_WALLET_MERCHANT_ID || tranportalId;
+  const appId = process.env.BENEFITPAY_WALLET_APP_ID || tranportalPassword || tranportalId;
+  const secretKey = process.env.BENEFITPAY_WALLET_SECRET_KEY || resourceKey;
   const clientId = process.env.BENEFITPAY_WALLET_CLIENT_ID; // Optional
-  const checkStatusUrl = process.env.BENEFITPAY_WALLET_CHECK_STATUS_URL;
+  const checkStatusUrl = process.env.BENEFITPAY_WALLET_CHECK_STATUS_URL || 
+    (benefitEndpoint ? `${benefitEndpoint.replace('/web/v1/merchant/transaction/init', '')}/web/v1/merchant/transaction/check-status` : undefined);
 
-  if (!merchantId || !appId || !secretKey || !checkStatusUrl) {
+  if (!merchantId || !appId || !secretKey) {
     const missing = [];
-    if (!merchantId) missing.push('BENEFITPAY_WALLET_MERCHANT_ID');
-    if (!appId) missing.push('BENEFITPAY_WALLET_APP_ID');
-    if (!secretKey) missing.push('BENEFITPAY_WALLET_SECRET_KEY');
-    if (!checkStatusUrl) missing.push('BENEFITPAY_WALLET_CHECK_STATUS_URL');
+    if (!merchantId) missing.push('BENEFITPAY_WALLET_MERCHANT_ID or BENEFIT_TRANPORTAL_ID');
+    if (!appId) missing.push('BENEFITPAY_WALLET_APP_ID or BENEFIT_TRANPORTAL_PASSWORD');
+    if (!secretKey) missing.push('BENEFITPAY_WALLET_SECRET_KEY or BENEFIT_RESOURCE_KEY');
     
     throw new Error(
       `Missing required BenefitPay Wallet credentials: ${missing.join(', ')}. ` +
-      'Please set these in your environment variables.'
+      'Please set BENEFIT_TRANPORTAL_ID, BENEFIT_TRANPORTAL_PASSWORD, and BENEFIT_RESOURCE_KEY, ' +
+      'or set wallet-specific credentials (BENEFITPAY_WALLET_*).'
     );
   }
+
+  // Default check-status URL if not provided
+  const defaultCheckStatusUrl = checkStatusUrl || 'https://api.test-benefitpay.bh/web/v1/merchant/transaction/check-status';
 
   return {
     merchantId,
     appId,
     secretKey,
     clientId,
-    checkStatusUrl,
+    checkStatusUrl: defaultCheckStatusUrl,
   };
 }
 

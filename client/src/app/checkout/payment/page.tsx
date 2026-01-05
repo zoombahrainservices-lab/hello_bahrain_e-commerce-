@@ -172,14 +172,14 @@ export default function PaymentPage() {
       const { signedParams, referenceNumber } = initResponse.data;
 
       if (!signedParams || !referenceNumber) {
-        throw new Error('Failed to initialize wallet payment');
+        throw new Error('Failed to initialize BenefitPay Wallet payment');
       }
 
       console.log('[Wallet] Signed parameters received, opening SDK...');
 
       // Step 2: Open InApp SDK
       if (!window.InApp) {
-        throw new Error('BenefitPay SDK not loaded');
+        throw new Error('BenefitPay Wallet SDK not loaded. Please refresh the page.');
       }
 
       window.InApp.open(
@@ -195,7 +195,7 @@ export default function PaymentPage() {
         (error: any) => {
           console.error('[Wallet] SDK error callback:', error);
           setWalletProcessing(false);
-          setError(error.message || 'Payment failed. Please try again.');
+          setError('BenefitPay Wallet payment failed. Please try again.');
         },
         // Close callback
         async () => {
@@ -212,7 +212,20 @@ export default function PaymentPage() {
     } catch (err: any) {
       console.error('[Wallet] Payment error:', err);
       setWalletProcessing(false);
-      const errorMsg = err.response?.data?.message || err.message || 'Wallet payment failed';
+      const backendMessage = err.response?.data?.message || err.message;
+      
+      // Make sure error message is clearly about BenefitPay Wallet, not EazyPay
+      let errorMsg = 'BenefitPay Wallet payment failed';
+      if (backendMessage) {
+        if (backendMessage.includes('EazyPay')) {
+          // This shouldn't happen, but if it does, show a clearer message
+          errorMsg = 'BenefitPay Wallet is not properly configured. Please contact support.';
+        } else if (backendMessage.includes('not configured') || backendMessage.includes('credentials')) {
+          errorMsg = 'BenefitPay Wallet is not properly configured. Please set BENEFIT_TRANPORTAL_ID, BENEFIT_TRANPORTAL_PASSWORD, and BENEFIT_RESOURCE_KEY.';
+        } else {
+          errorMsg = `BenefitPay Wallet: ${backendMessage}`;
+        }
+      }
       setError(errorMsg);
     }
   };
@@ -388,9 +401,17 @@ export default function PaymentPage() {
     } catch (err: any) {
       console.error('Payment gateway error', err);
       const backendMessage = err.response?.data?.message || err.response?.data?.error;
-      if (backendMessage) {
-        setError(`Payment error: ${backendMessage}`);
+      
+      // Make sure error messages are specific to the payment method
+      if (paymentMethod === 'card') {
+        // EazyPay error
+        if (backendMessage) {
+          setError(`Payment error: ${backendMessage}`);
+        } else {
+          setError(err?.message || 'Could not start payment. Please try again.');
+        }
       } else {
+        // Should not reach here for wallet (it has its own error handling)
         setError(err?.message || 'Could not start payment. Please try again.');
       }
       setSubmitting(false);
