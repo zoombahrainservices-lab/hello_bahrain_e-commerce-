@@ -13,6 +13,14 @@ import { api } from '@/lib/api';
 declare global {
   interface Window {
     Checkout?: any;
+    InApp?: {
+      open: (
+        params: any,
+        successCb: (result: any) => void,
+        errorCb: (error: any) => void,
+        closeCb: () => void
+      ) => void;
+    };
     errorCallback?: (err: unknown) => void;
     cancelCallback?: () => void;
   }
@@ -37,7 +45,7 @@ export default function PaymentPage() {
   const router = useRouter();
 
   const [shipping, setShipping] = useState<ShippingFormData | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'benefit' | 'cod'>('card');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'benefitpay_wallet' | 'cod'>('card');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   
@@ -53,9 +61,36 @@ export default function PaymentPage() {
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [saveCard, setSaveCard] = useState(false);
   const [loadingTokens, setLoadingTokens] = useState(false);
+  
+  // Wallet payment states
+  const [walletProcessing, setWalletProcessing] = useState(false);
+  const [walletPolling, setWalletPolling] = useState(false);
+  const [sdkLoaded, setSdkLoaded] = useState(false);
 
   // Note: EazyPay Checkout now uses server-side invoice creation and redirect
   // No need to load Checkout.js script anymore
+  
+  // Load BenefitPay Wallet SDK when needed
+  useEffect(() => {
+    if (paymentMethod === 'benefitpay_wallet' && !sdkLoaded) {
+      const script = document.createElement('script');
+      script.src = '/InApp.min.js';
+      script.async = true;
+      script.onload = () => {
+        console.log('[Wallet SDK] SDK loaded successfully');
+        setSdkLoaded(true);
+      };
+      script.onerror = () => {
+        console.error('[Wallet SDK] Failed to load SDK');
+        setError('Failed to load BenefitPay SDK. Please try again.');
+      };
+      document.body.appendChild(script);
+      
+      return () => {
+        document.body.removeChild(script);
+      };
+    }
+  }, [paymentMethod, sdkLoaded]);
 
   // Load saved shipping info; guard routes
   useEffect(() => {
@@ -86,7 +121,7 @@ export default function PaymentPage() {
     const fetchSavedTokens = async () => {
       // Check if feature is enabled (frontend check)
       const featureEnabled = process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true';
-      if (!featureEnabled || !user || paymentMethod !== 'benefit') {
+      if (!featureEnabled || !user || paymentMethod !== 'benefitpay_wallet') {
         return;
       }
 
@@ -110,7 +145,7 @@ export default function PaymentPage() {
       }
     };
 
-    if (user && paymentMethod === 'benefit') {
+    if (user && paymentMethod === 'benefitpay_wallet') {
       fetchSavedTokens();
     } else {
       setSavedTokens([]);
@@ -118,6 +153,139 @@ export default function PaymentPage() {
       setSelectedTokenId(null);
     }
   }, [user, paymentMethod]);
+
+  // Wallet payment flow with SDK
+  const handleWalletPayment = async (sessionId: string, totalAmount: number) => {
+    try {
+      setWalletProcessing(true);
+      setError('');
+
+      // Step 1: Call backend to get signed parameters
+      console.log('[Wallet] Initializing wallet payment...');
+      const initResponse = await api.post('/api/payments/benefitpay/init', {
+        sessionId,
+        showResult: true,
+        hideMobileQR: false,
+        qr_timeout: 300,
+      });
+
+      const { signedParams, referenceNumber } = initResponse.data;
+
+      if (!signedParams || !referenceNumber) {
+        throw new Error('Failed to initialize wallet payment');
+      }
+
+      console.log('[Wallet] Signed parameters received, opening SDK...');
+
+      // Step 2: Open InApp SDK
+      if (!window.InApp) {
+        throw new Error('BenefitPay SDK not loaded');
+      }
+
+      window.InApp.open(
+        signedParams,
+        // Success callback - SDK success does NOT mean payment success
+        async (result: any) => {
+          console.log('[Wallet] SDK success callback:', result);
+          setWalletProcessing(false);
+          // Start polling for payment status
+          await pollPaymentStatus(referenceNumber, sessionId);
+        },
+        // Error callback
+        (error: any) => {
+          console.error('[Wallet] SDK error callback:', error);
+          setWalletProcessing(false);
+          setError(error.message || 'Payment failed. Please try again.');
+        },
+        // Close callback
+        async () => {
+          console.log('[Wallet] SDK close callback');
+          setWalletProcessing(false);
+          // Check status once in case payment was completed before close
+          try {
+            await checkPaymentStatus(referenceNumber, sessionId, false);
+          } catch (err) {
+            console.log('[Wallet] Payment cancelled or incomplete');
+          }
+        }
+      );
+    } catch (err: any) {
+      console.error('[Wallet] Payment error:', err);
+      setWalletProcessing(false);
+      const errorMsg = err.response?.data?.message || err.message || 'Wallet payment failed';
+      setError(errorMsg);
+    }
+  };
+
+  // Check payment status with backend
+  const checkPaymentStatus = async (referenceNumber: string, sessionId: string, showErrors = true): Promise<boolean> => {
+    try {
+      const statusResponse = await api.post('/api/payments/benefitpay/check-status', {
+        referenceNumber,
+        sessionId,
+      });
+
+      const { success, orderId, status, reason } = statusResponse.data;
+
+      if (success && orderId) {
+        console.log('[Wallet] Payment successful, order created:', orderId);
+        // Clear cart
+        clearCart();
+        // Redirect to success page
+        router.push(`/profile/orders?orderId=${orderId}`);
+        return true;
+      } else if (status === 'failed') {
+        if (showErrors) {
+          setError(reason || 'Payment failed. Your cart is intact.');
+        }
+        return false;
+      } else {
+        // Pending or not found
+        console.log('[Wallet] Payment status:', status, reason);
+        return false;
+      }
+    } catch (err: any) {
+      console.error('[Wallet] Status check error:', err);
+      if (showErrors) {
+        const errorMsg = err.response?.data?.message || err.message || 'Failed to check payment status';
+        setError(errorMsg);
+      }
+      return false;
+    }
+  };
+
+  // Poll payment status (for delayed payments)
+  const pollPaymentStatus = async (referenceNumber: string, sessionId: string) => {
+    setWalletPolling(true);
+    const maxAttempts = 30; // 30 attempts * 3 seconds = 90 seconds max
+    let attempts = 0;
+
+    const poll = async () => {
+      attempts++;
+      console.log(`[Wallet] Polling attempt ${attempts}/${maxAttempts}`);
+
+      const success = await checkPaymentStatus(referenceNumber, sessionId, false);
+
+      if (success) {
+        setWalletPolling(false);
+        return;
+      }
+
+      if (attempts >= maxAttempts) {
+        setWalletPolling(false);
+        setError(
+          'Payment status is taking longer than expected. ' +
+          'Please check your orders page in a few minutes. Your cart has been kept intact.'
+        );
+        return;
+      }
+
+      // Poll again after 3 seconds
+      setTimeout(poll, 3000);
+    };
+
+    poll();
+  };
 
   const startOnlinePayment = async () => {
     try {
@@ -179,40 +347,17 @@ export default function PaymentPage() {
       console.log('[Checkout] Created checkout session:', sessionId);
 
       // Route to appropriate payment gateway based on payment method
+      if (paymentMethod === 'benefitpay_wallet') {
+        // Use BenefitPay Wallet SDK (in-app payment)
+        setSubmitting(false); // Reset submitting state for wallet flow
+        await handleWalletPayment(sessionId, totalAmount);
+        return; // Don't redirect, wallet handles its own flow
+      }
+      
+      // For card payments, use EazyPay with redirect
       let paymentUrl: string;
-
-      if (paymentMethod === 'benefit') {
-        // Check if using saved card (Faster Checkout)
-        const featureEnabled = process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true';
-        if (featureEnabled && useSavedCard && selectedTokenId) {
-          // Use token-based payment (Faster Checkout)
-          const paymentResponse = await api.post('/api/payments/benefit/init-with-token', {
-            sessionId,
-            amount: totalAmount,
-            currency: 'BHD',
-            tokenId: selectedTokenId,
-          });
-
-          paymentUrl = paymentResponse.data.paymentUrl;
-
-          if (!paymentUrl) {
-            throw new Error('No payment URL received from BENEFIT gateway');
-          }
-        } else {
-          // Use regular BENEFIT Payment Gateway for BenefitPay
-          const paymentResponse = await api.post('/api/payments/benefit/init', {
-            sessionId,
-            amount: totalAmount,
-            currency: 'BHD',
-          });
-
-          paymentUrl = paymentResponse.data.paymentUrl;
-
-          if (!paymentUrl) {
-            throw new Error('No payment URL received from BENEFIT gateway');
-          }
-        }
-      } else {
+      
+      if (paymentMethod === 'card') {
         // Use EazyPay for card payments
         const paymentResponse = await api.post('/api/payments/eazypay/create-invoice', {
           sessionId,
@@ -226,18 +371,20 @@ export default function PaymentPage() {
         if (!paymentUrl) {
           throw new Error('No payment URL received from EazyPay');
         }
-      }
+        
+        // Store session ID for return page (not order ID, since order doesn't exist yet)
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('pending_checkout_session_id', sessionId);
+          // Remove old pending_order_id if exists
+          window.localStorage.removeItem('pending_order_id');
+        }
 
-      // Store session ID for return page (not order ID, since order doesn't exist yet)
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('pending_checkout_session_id', sessionId);
-        // Remove old pending_order_id if exists
-        window.localStorage.removeItem('pending_order_id');
+        // Redirect to payment gateway
+        // Cart will NOT be cleared here - only after payment success
+        window.location.href = paymentUrl;
+      } else {
+        throw new Error('Invalid payment method');
       }
-
-      // Redirect to payment gateway
-      // Cart will NOT be cleared here - only after payment success
-      window.location.href = paymentUrl;
     } catch (err: any) {
       console.error('Payment gateway error', err);
       const backendMessage = err.response?.data?.message || err.response?.data?.error;
@@ -362,7 +509,7 @@ export default function PaymentPage() {
                     className="mr-3"
                   />
                   <div>
-                    <p className="font-medium">BenefitPay</p>
+                    <p className="font-medium">Credit / Debit Card</p>
                     <p className="text-xs text-gray-500">Visa, Mastercard and other major cards.</p>
                   </div>
                 </label>
@@ -371,19 +518,19 @@ export default function PaymentPage() {
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value="benefit"
-                    checked={paymentMethod === 'benefit'}
-                    onChange={() => setPaymentMethod('benefit')}
+                    value="benefitpay_wallet"
+                    checked={paymentMethod === 'benefitpay_wallet'}
+                    onChange={() => setPaymentMethod('benefitpay_wallet')}
                     className="mr-3"
                   />
                   <div>
-                    <p className="font-medium">Credit / Debit Card</p>
+                    <p className="font-medium">BenefitPay Wallet</p>
                     <p className="text-xs text-gray-500">Pay quickly using Bahrain&apos;s BenefitPay app.</p>
                   </div>
                 </label>
 
-                {/* Faster Checkout UI - Only show if feature enabled and BenefitPay selected */}
-                {paymentMethod === 'benefit' && process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && (
+                {/* Faster Checkout UI - Only show if feature enabled and BenefitPay Wallet selected */}
+                {paymentMethod === 'benefitpay_wallet' && process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && (
                   <div className="ml-8 mt-2 space-y-3 border-l-2 border-primary-200 pl-4">
                     {/* Saved Cards Dropdown */}
                     {savedTokens.length > 0 && (
@@ -458,11 +605,30 @@ export default function PaymentPage() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || walletProcessing || walletPolling}
                 className="w-full mt-4 bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition disabled:opacity-50"
               >
-                {submitting ? 'Placing Order...' : 'Confirm & Place Order'}
+                {walletPolling
+                  ? 'Verifying Payment...'
+                  : walletProcessing
+                  ? 'Opening Wallet...'
+                  : submitting
+                  ? 'Placing Order...'
+                  : 'Confirm & Place Order'}
               </button>
+              
+              {walletPolling && (
+                <div className="mt-3 text-center text-sm text-gray-600">
+                  <p>Checking payment status... This may take up to 90 seconds.</p>
+                  <p className="mt-1">Please do not close this page.</p>
+                </div>
+              )}
+              
+              {paymentMethod === 'benefitpay_wallet' && !sdkLoaded && (
+                <div className="mt-3 text-center text-sm text-yellow-600">
+                  Loading BenefitPay SDK...
+                </div>
+              )}
             </form>
           </div>
 
