@@ -59,27 +59,33 @@ export function validateWalletCredentials(): WalletCredentials {
     throw new Error(errorMsg);
   }
 
+  // At this point, TypeScript knows all values are defined, but we need to assert for type narrowing
+  // We've already validated above, so these are guaranteed to be strings
+  const validatedMerchantId = merchantId as string;
+  const validatedAppId = appId as string;
+  const validatedSecretKey = secretKey as string;
+
   // Validate expected values
-  if (merchantId !== '3186') {
-    console.warn('[BenefitPay Wallet Config] WARNING: Unexpected Merchant ID:', merchantId, '(expected: 3186)');
+  if (validatedMerchantId !== '3186') {
+    console.warn('[BenefitPay Wallet Config] WARNING: Unexpected Merchant ID:', validatedMerchantId, '(expected: 3186)');
   }
-  if (appId !== '1988588907') {
-    console.warn('[BenefitPay Wallet Config] WARNING: Unexpected App ID:', appId, '(expected: 1988588907)');
+  if (validatedAppId !== '1988588907') {
+    console.warn('[BenefitPay Wallet Config] WARNING: Unexpected App ID:', validatedAppId, '(expected: 1988588907)');
   }
-  if (secretKey.length !== 45) {
-    console.warn('[BenefitPay Wallet Config] WARNING: Secret key length is', secretKey.length, '(expected: 45 chars)');
+  if (validatedSecretKey.length !== 45) {
+    console.warn('[BenefitPay Wallet Config] WARNING: Secret key length is', validatedSecretKey.length, '(expected: 45 chars)');
   }
 
   console.log('[BenefitPay Wallet Config] ✓ All required credentials present');
-  console.log('[BenefitPay Wallet Config] ✓ merchantId:', merchantId);
-  console.log('[BenefitPay Wallet Config] ✓ appId:', appId);
-  console.log('[BenefitPay Wallet Config] ✓ secretKey: SET (length:', secretKey.length, ')');
+  console.log('[BenefitPay Wallet Config] ✓ merchantId:', validatedMerchantId);
+  console.log('[BenefitPay Wallet Config] ✓ appId:', validatedAppId);
+  console.log('[BenefitPay Wallet Config] ✓ secretKey: SET (length:', validatedSecretKey.length, ')');
   console.log('[BenefitPay Wallet Config] ✓ checkStatusUrl:', checkStatusUrl);
 
   return {
-    merchantId,
-    appId,
-    secretKey,
+    merchantId: validatedMerchantId,
+    appId: validatedAppId,
+    secretKey: validatedSecretKey,
     clientId,
     checkStatusUrl,
   };
