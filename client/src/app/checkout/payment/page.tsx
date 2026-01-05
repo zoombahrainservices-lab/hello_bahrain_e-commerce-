@@ -116,12 +116,12 @@ export default function PaymentPage() {
     }
   }, [authLoading, user, items.length, router]);
 
-  // Fetch saved tokens if feature is enabled and user is logged in
+  // Fetch saved tokens if feature is enabled and user is logged in (for card/BENEFIT PG)
   useEffect(() => {
     const fetchSavedTokens = async () => {
       // Check if feature is enabled (frontend check)
       const featureEnabled = process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true';
-      if (!featureEnabled || !user || paymentMethod !== 'benefitpay_wallet') {
+      if (!featureEnabled || !user || paymentMethod !== 'card') {
         return;
       }
 
@@ -145,7 +145,7 @@ export default function PaymentPage() {
       }
     };
 
-    if (user && paymentMethod === 'benefitpay_wallet') {
+    if (user && paymentMethod === 'card') {
       fetchSavedTokens();
     } else {
       setSavedTokens([]);
@@ -367,22 +367,36 @@ export default function PaymentPage() {
         return; // Don't redirect, wallet handles its own flow
       }
       
-      // For card payments, use EazyPay with redirect
+      // For card payments, use BENEFIT Payment Gateway (old BenefitPay PG)
       let paymentUrl: string;
       
       if (paymentMethod === 'card') {
-        // Use EazyPay for card payments
-        const paymentResponse = await api.post('/api/payments/eazypay/create-invoice', {
-          sessionId,
-          amount: totalAmount,
-          currency: 'BHD',
-          description: `Checkout Session #${sessionId.substring(0, 8)}`,
-        });
+        // Use BENEFIT Payment Gateway for card payments (moved from old 'benefit' option)
+        // Check if using saved card (Faster Checkout)
+        const featureEnabled = process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true';
+        let paymentResponse;
+        
+        if (featureEnabled && useSavedCard && selectedTokenId) {
+          // Use token-based payment (Faster Checkout)
+          paymentResponse = await api.post('/api/payments/benefit/init-with-token', {
+            sessionId,
+            amount: totalAmount,
+            currency: 'BHD',
+            tokenId: selectedTokenId,
+          });
+        } else {
+          // Use regular BENEFIT Payment Gateway
+          paymentResponse = await api.post('/api/payments/benefit/init', {
+            sessionId,
+            amount: totalAmount,
+            currency: 'BHD',
+          });
+        }
 
         paymentUrl = paymentResponse.data.paymentUrl;
 
         if (!paymentUrl) {
-          throw new Error('No payment URL received from EazyPay');
+          throw new Error('No payment URL received from BENEFIT gateway');
         }
         
         // Store session ID for return page (not order ID, since order doesn't exist yet)
@@ -550,8 +564,8 @@ export default function PaymentPage() {
                   </div>
                 </label>
 
-                {/* Faster Checkout UI - Only show if feature enabled and BenefitPay Wallet selected */}
-                {paymentMethod === 'benefitpay_wallet' && process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && (
+                {/* Faster Checkout UI - Only show if feature enabled and Card (BENEFIT PG) selected */}
+                {paymentMethod === 'card' && process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && (
                   <div className="ml-8 mt-2 space-y-3 border-l-2 border-primary-200 pl-4">
                     {/* Saved Cards Dropdown */}
                     {savedTokens.length > 0 && (
