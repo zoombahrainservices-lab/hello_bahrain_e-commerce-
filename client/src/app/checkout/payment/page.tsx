@@ -545,7 +545,7 @@ export default function PaymentPage() {
                     className="mr-3"
                   />
                   <div>
-                    <p className="font-medium">BenefitPay Wallet</p>
+                    <p className="font-medium">BenefitPay</p>
                     <p className="text-xs text-gray-500">Pay quickly using Bahrain&apos;s BenefitPay app.</p>
                   </div>
                 </label>

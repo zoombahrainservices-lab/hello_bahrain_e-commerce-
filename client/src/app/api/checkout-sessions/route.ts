@@ -19,7 +19,7 @@ export async function OPTIONS(request: NextRequest) {
  * - items: Array<{productId, quantity, name, price, image}>
  * - shippingAddress: ShippingFormData
  * - total: number
- * - paymentMethod: 'benefit' | 'card'
+ * - paymentMethod: 'benefitpay_wallet' | 'card' | 'cod'
  * 
  * Response:
  * - sessionId: string
@@ -60,9 +60,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (paymentMethod !== 'benefit' && paymentMethod !== 'card') {
+    if (paymentMethod !== 'benefitpay_wallet' && paymentMethod !== 'card' && paymentMethod !== 'cod') {
       return cors.addHeaders(
-        NextResponse.json({ message: 'Payment method must be benefit or card' }, { status: 400 }),
+        NextResponse.json({ message: 'Payment method must be benefitpay_wallet, card, or cod' }, { status: 400 }),
         request
       );
     }
