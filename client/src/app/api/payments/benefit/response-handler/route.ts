@@ -12,13 +12,13 @@ export const dynamic = 'force-dynamic';
  * Flow:
  * 1. BenefitPay POST → /api/payments/benefit/response-handler
  * 2. Extract trandata from form data
- * 3. Redirect browser → /pay/benefit/response?orderId=...&trandata=...
+ * 3. Redirect browser → /pay/benefit/response?sessionId=...&trandata=...
  * 4. Page loads with GET request and processes trandata
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get orderId from query params
-    const orderId = request.nextUrl.searchParams.get('orderId');
+    // Get sessionId from query params
+    const sessionId = request.nextUrl.searchParams.get('sessionId');
     
     // Get form data from POST request
     const formData = await request.formData();
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const error = formData.get('Error') as string | null;
     
     console.log('[BENEFIT Response Handler] Received POST:', {
-      orderId,
+      sessionId,
       hasTrandata: !!trandata,
       trandataLength: trandata?.length || 0,
       hasError: !!(errorText || error),
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.CLIENT_URL || 'https://helloonebahrain.com';
     const redirectUrl = new URL('/pay/benefit/response', baseUrl);
     
-    if (orderId) {
-      redirectUrl.searchParams.set('orderId', orderId);
+    if (sessionId) {
+      redirectUrl.searchParams.set('sessionId', sessionId);
     }
     
     if (trandata) {

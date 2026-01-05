@@ -27,6 +27,25 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isSyncingRef = useRef(false);
 
+  // Function to load cart from database
+  const loadCartFromDatabase = async () => {
+    if (!user) return;
+
+    try {
+      console.log('[Cart] Loading cart from database for user:', user.id);
+      const response = await api.get('/api/cart');
+      const dbItems = response.data.items || [];
+      
+      console.log('[Cart] Loaded', dbItems.length, 'items from database');
+      // Database cart takes precedence
+      setItems(dbItems);
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(dbItems));
+    } catch (error: any) {
+      console.error('[Cart] Error loading cart from database:', error);
+      // Don't update state on error - keep current cart
+    }
+  };
+
   // Load cart from database and localStorage on mount
   useEffect(() => {
     const loadCart = async () => {
@@ -106,6 +125,34 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     };
   }, [items, isInitialized, user]);
+
+  // Periodic cart sync (every 30 seconds when tab is active)
+  useEffect(() => {
+    if (!user || !isInitialized) return;
+    
+    const interval = setInterval(() => {
+      // Only sync if tab is active
+      if (document.visibilityState === 'visible') {
+        console.log('[Cart] Periodic sync - loading cart from database');
+        loadCartFromDatabase();
+      }
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [user, isInitialized]);
+
+  // Reload cart when window gains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user && isInitialized) {
+        console.log('[Cart] Window focused - reloading cart from database');
+        loadCartFromDatabase();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [user, isInitialized]);
 
   // Sync cart to database function
   const syncCartToDatabase = async (cartItems: CartItem[]) => {
