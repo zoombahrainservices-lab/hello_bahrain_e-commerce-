@@ -134,24 +134,49 @@ export default function PaymentPage() {
 
       setSubmitting(true);
 
-      // Create order first (with unpaid status)
-      const orderData = {
+      // Create checkout session (NOT an order) for online payments
+      // Order will be created only after payment success
+      const sessionData = {
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
+          name: item.name,
+          price: item.price,
+          image: item.image,
         })),
         shippingAddress: shipping,
+        total: totalAmount,
         paymentMethod: paymentMethod,
-        paymentStatus: 'unpaid', // Will be updated when payment completes
       };
 
-      const orderResponse = await api.post('/api/orders', orderData);
-      const order = orderResponse.data;
-      const orderId = order?.id || order?._id;
-
-      if (!orderId) {
-        throw new Error('Failed to create order');
+      let sessionResponse;
+      try {
+        sessionResponse = await api.post('/api/checkout-sessions', sessionData);
+      } catch (sessionError: any) {
+        console.error('[Checkout] Session creation API error:', sessionError);
+        const errorMsg = sessionError.response?.data?.message || sessionError.message || 'Failed to create checkout session';
+        
+        // Provide helpful error message for database issues
+        if (errorMsg.includes('checkout_sessions') || errorMsg.includes('table') || errorMsg.includes('schema cache')) {
+          throw new Error('Database table not found. Please contact support to set up checkout sessions.');
+        }
+        
+        throw new Error(errorMsg);
       }
+      
+      if (!sessionResponse || !sessionResponse.data) {
+        throw new Error('Failed to create checkout session: No response from server');
+      }
+
+      const sessionId = sessionResponse.data.sessionId;
+
+      if (!sessionId) {
+        const errorMsg = sessionResponse.data.message || 'Failed to create checkout session: No session ID returned';
+        console.error('[Checkout] Session creation failed:', sessionResponse.data);
+        throw new Error(errorMsg);
+      }
+
+      console.log('[Checkout] Created checkout session:', sessionId);
 
       // Route to appropriate payment gateway based on payment method
       let paymentUrl: string;
@@ -162,7 +187,7 @@ export default function PaymentPage() {
         if (featureEnabled && useSavedCard && selectedTokenId) {
           // Use token-based payment (Faster Checkout)
           const paymentResponse = await api.post('/api/payments/benefit/init-with-token', {
-            orderId,
+            sessionId,
             amount: totalAmount,
             currency: 'BHD',
             tokenId: selectedTokenId,
@@ -176,7 +201,7 @@ export default function PaymentPage() {
         } else {
           // Use regular BENEFIT Payment Gateway for BenefitPay
           const paymentResponse = await api.post('/api/payments/benefit/init', {
-            orderId,
+            sessionId,
             amount: totalAmount,
             currency: 'BHD',
           });
@@ -190,10 +215,10 @@ export default function PaymentPage() {
       } else {
         // Use EazyPay for card payments
         const paymentResponse = await api.post('/api/payments/eazypay/create-invoice', {
-          orderId,
+          sessionId,
           amount: totalAmount,
           currency: 'BHD',
-          description: `Order #${orderId}`,
+          description: `Checkout Session #${sessionId.substring(0, 8)}`,
         });
 
         paymentUrl = paymentResponse.data.paymentUrl;
@@ -203,12 +228,15 @@ export default function PaymentPage() {
         }
       }
 
-      // Store order ID for return page
+      // Store session ID for return page (not order ID, since order doesn't exist yet)
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem('pending_order_id', orderId);
+        window.localStorage.setItem('pending_checkout_session_id', sessionId);
+        // Remove old pending_order_id if exists
+        window.localStorage.removeItem('pending_order_id');
       }
 
       // Redirect to payment gateway
+      // Cart will NOT be cleared here - only after payment success
       window.location.href = paymentUrl;
     } catch (err: any) {
       console.error('Payment gateway error', err);
@@ -267,6 +295,12 @@ export default function PaymentPage() {
         clearCart();
         // Redirect to order success page with order ID if available
         if (orderId) {
+          // Dispatch event before redirect
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('orderPlaced', { 
+              detail: { orderId } 
+            }));
+          }
           router.push(`/order/success?orderId=${orderId}`);
         } else {
           router.push('/order/success');
