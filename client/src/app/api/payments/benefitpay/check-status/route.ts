@@ -21,7 +21,7 @@ import {
   generateStatusCheckSignature, 
   validateWalletCredentials 
 } from '@/lib/services/benefitpay/crypto';
-import { releaseStockBatch } from '@/lib/db/inventory';
+import { releaseStockBatch } from '@/lib/db-stock-helpers';
 
 export const dynamic = 'force-dynamic';
 
