@@ -5,6 +5,8 @@ import { cors } from '@/lib/cors';
 import { decryptTrandata } from '@/lib/services/benefit/crypto';
 import { parseResponseTrandata, isTransactionSuccessful } from '@/lib/services/benefit/trandata';
 import { storePaymentToken } from '@/lib/services/benefit/token-storage';
+import { releaseStockBatch } from '@/lib/db-stock-helpers';
+import { supabaseHelpers } from '@/lib/supabase-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,12 +40,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { orderId, trandata } = body;
+    const { sessionId, trandata } = body;
 
     // Validation
-    if (!orderId) {
+    if (!sessionId) {
       return cors.addHeaders(
-        NextResponse.json({ message: 'orderId is required' }, { status: 400 }),
+        NextResponse.json({ message: 'sessionId is required' }, { status: 400 }),
         request
       );
     }
@@ -51,33 +53,6 @@ export async function POST(request: NextRequest) {
     if (!trandata) {
       return cors.addHeaders(
         NextResponse.json({ message: 'trandata is required' }, { status: 400 }),
-        request
-      );
-    }
-
-    // Verify order exists and belongs to user
-    // Include benefit_track_id for trackId validation
-    const { data: order, error: orderError } = await getSupabase()
-      .from('orders')
-      .select('id, user_id, total, payment_status, benefit_track_id')
-      .eq('id', orderId)
-      .eq('user_id', authResult.user.id)
-      .single();
-
-    if (orderError || !order) {
-      return cors.addHeaders(
-        NextResponse.json({ message: 'Order not found' }, { status: 404 }),
-        request
-      );
-    }
-
-    // Check if order is already paid (idempotency)
-    if (order.payment_status === 'paid') {
-      return cors.addHeaders(
-        NextResponse.json({
-          success: true,
-          message: 'Order already processed',
-        }),
         request
       );
     }
@@ -121,30 +96,95 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate transaction
-    const isSuccessful = isTransactionSuccessful(responseData);
+    // Look up checkout session by benefit_track_id or benefit_payment_id
+    const trackId = responseData.trackId ? String(responseData.trackId) : null;
+    const paymentId = responseData.paymentId || null;
 
-    if (!isSuccessful) {
-      console.log('[BENEFIT Process] Transaction failed:', responseData.result);
+    let session;
+    if (trackId) {
+      const { data: sessionByTrackId, error: sessionError } = await getSupabase()
+        .from('checkout_sessions')
+        .select('*')
+        .eq('benefit_track_id', trackId)
+        .eq('status', 'initiated')
+        .eq('user_id', authResult.user.id)
+        .single();
+      
+      if (!sessionError && sessionByTrackId) {
+        session = sessionByTrackId;
+      }
+    }
+
+    // If not found by trackId, try paymentId
+    if (!session && paymentId) {
+      const { data: sessionByPaymentId, error: sessionError2 } = await getSupabase()
+        .from('checkout_sessions')
+        .select('*')
+        .eq('benefit_payment_id', paymentId)
+        .eq('status', 'initiated')
+        .eq('user_id', authResult.user.id)
+        .single();
+      
+      if (!sessionError2 && sessionByPaymentId) {
+        session = sessionByPaymentId;
+      }
+    }
+
+    // If still not found and we have sessionId, use it directly
+    if (!session && sessionId) {
+      const { data: sessionById, error: sessionError3 } = await getSupabase()
+        .from('checkout_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .eq('status', 'initiated')
+        .eq('user_id', authResult.user.id)
+        .single();
+      
+      if (!sessionError3 && sessionById) {
+        session = sessionById;
+      }
+    }
+
+    if (!session) {
       return cors.addHeaders(
-        NextResponse.json({
-          success: false,
-          message: `Payment failed: ${responseData.result || 'Unknown error'}`,
-        }),
+        NextResponse.json({ message: 'Checkout session not found' }, { status: 404 }),
         request
       );
     }
 
-    // Validate amount matches order
+    // Check if session already has an order (idempotency)
+    if (session.order_id) {
+      const { data: existingOrder } = await getSupabase()
+        .from('orders')
+        .select('id, payment_status')
+        .eq('id', session.order_id)
+        .single();
+      
+      if (existingOrder && existingOrder.payment_status === 'paid') {
+        return cors.addHeaders(
+          NextResponse.json({
+            success: true,
+            message: 'Order already processed',
+            orderId: existingOrder.id,
+          }),
+          request
+        );
+      }
+    }
+
+    // Validate transaction
+    const isSuccessful = isTransactionSuccessful(responseData);
+
+    // Validate amount matches session
     if (responseData.amt) {
       const responseAmount = parseFloat(responseData.amt);
-      const orderAmount = parseFloat(order.total);
-      const amountDiff = Math.abs(responseAmount - orderAmount);
+      const sessionAmount = parseFloat(session.total.toString());
+      const amountDiff = Math.abs(responseAmount - sessionAmount);
 
       if (amountDiff > 0.01) { // Allow 0.01 difference for rounding
         console.error('[BENEFIT Process] Amount mismatch:', {
           responseAmount,
-          orderAmount,
+          sessionAmount,
           difference: amountDiff,
         });
         return cors.addHeaders(
@@ -157,76 +197,178 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate trackId matches the stored benefit_track_id
-    // We send numeric trackId to BenefitPay, not the UUID orderId
-    if (responseData.trackId) {
-      const storedTrackId = order.benefit_track_id;
+    // If payment failed, mark session as failed and release inventory
+    if (!isSuccessful) {
+      console.log('[BENEFIT Process] Transaction failed:', responseData.result);
       
-      // Compare trackId from response with stored benefit_track_id
-      // Convert both to strings for comparison (trackId might be string or number)
-      if (storedTrackId && String(responseData.trackId) !== String(storedTrackId)) {
-        console.error('[BENEFIT Process] TrackId mismatch:', {
-          responseTrackId: responseData.trackId,
-          storedTrackId: storedTrackId,
-          orderId,
-        });
-        return cors.addHeaders(
-          NextResponse.json({
-            success: false,
-            message: 'Order reference mismatch',
-          }),
-          request
-        );
-      }
+      // Mark session as failed
+      await getSupabase()
+        .from('checkout_sessions')
+        .update({ 
+          status: 'failed',
+          inventory_released_at: new Date().toISOString(),
+        })
+        .eq('id', session.id);
       
-      // If no stored trackId but we have one in response, log warning but allow
-      // (might be from old orders before we started storing trackId)
-      if (!storedTrackId) {
-        console.warn('[BENEFIT Process] No stored benefit_track_id for order:', orderId);
-        // Still allow processing - might be from before we started storing trackId
-      }
-    }
-
-    // Update order as paid
-    // IMPORTANT: Also restore status to 'pending' if it was cancelled by the cron job
-    // This handles race conditions where the cron job cancelled the order before payment completed
-    const updateData: any = {
-      payment_status: 'paid',
-      paid_on: new Date().toISOString(),
-      payment_raw_response: responseData,
-      inventory_status: 'sold', // Mark inventory as sold
-      reservation_expires_at: null, // Clear reservation expiry
-      status: 'pending', // Ensure status is pending (not cancelled) for paid orders
-    };
-
-    // Store BENEFIT-specific fields
-    if (responseData.transId) {
-      updateData.benefit_trans_id = responseData.transId;
-    }
-    if (responseData.ref) {
-      updateData.benefit_ref = responseData.ref;
-    }
-    if (responseData.authRespCode) {
-      updateData.benefit_auth_resp_code = responseData.authRespCode;
-    }
-    if (responseData.paymentId) {
-      updateData.benefit_payment_id = responseData.paymentId;
-    }
-
-    const { error: updateError } = await getSupabase()
-      .from('orders')
-      .update(updateData)
-      .eq('id', orderId);
-
-    if (updateError) {
-      console.error('[BENEFIT Process] Update error:', updateError);
+      // Release reserved inventory
+      await releaseStockBatch(
+        session.items.map((item: any) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        }))
+      ).catch(releaseError => {
+        console.error('[BENEFIT Process] Failed to release stock:', releaseError);
+      });
+      
       return cors.addHeaders(
-        NextResponse.json({ message: 'Failed to update order status' }, { status: 500 }),
+        NextResponse.json({
+          success: false,
+          message: `Payment failed: ${responseData.result || 'Unknown error'}`,
+        }),
         request
       );
     }
 
-    console.log('[BENEFIT Process] Payment successful for order:', orderId);
+    // Payment successful - create order from session
+    // First, verify products still exist and get current data
+    const orderItems = [];
+    let total = 0;
+
+    for (const item of session.items) {
+      const product = await supabaseHelpers.findProductById(item.productId);
+      
+      if (!product) {
+        console.error('[BENEFIT Process] Product not found:', item.productId);
+        // Mark session as failed and release inventory
+        await getSupabase()
+          .from('checkout_sessions')
+          .update({ status: 'failed' })
+          .eq('id', session.id);
+        
+        await releaseStockBatch(
+          session.items.map((it: any) => ({
+            productId: it.productId,
+            quantity: it.quantity,
+          }))
+        ).catch(() => {});
+        
+        return cors.addHeaders(
+          NextResponse.json({ message: `Product not found: ${item.productId}` }, { status: 404 }),
+          request
+        );
+      }
+
+      orderItems.push({
+        product_id: product.id,
+        name: item.name || product.name,
+        price: item.price || product.price,
+        quantity: item.quantity,
+        image: item.image || product.image,
+      });
+
+      total += parseFloat((item.price || product.price).toString()) * item.quantity;
+    }
+
+    // Create order
+    const orderInsertData: any = {
+      user_id: session.user_id,
+      total: session.total, // Use session total (may differ slightly from recalculated)
+      status: 'pending',
+      payment_status: 'paid',
+      payment_method: session.payment_method,
+      shipping_address: session.shipping_address,
+      inventory_status: 'sold',
+      inventory_reserved_at: session.inventory_reserved_at,
+      paid_on: new Date().toISOString(),
+      payment_raw_response: responseData,
+      benefit_track_id: session.benefit_track_id,
+      benefit_payment_id: session.benefit_payment_id,
+    };
+
+    // Store BENEFIT-specific fields
+    if (responseData.transId) {
+      orderInsertData.benefit_trans_id = responseData.transId;
+    }
+    if (responseData.ref) {
+      orderInsertData.benefit_ref = responseData.ref;
+    }
+    if (responseData.authRespCode) {
+      orderInsertData.benefit_auth_resp_code = responseData.authRespCode;
+    }
+
+    const { data: order, error: orderError } = await getSupabase()
+      .from('orders')
+      .insert(orderInsertData)
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error('[BENEFIT Process] Order creation error:', orderError);
+      // Mark session as failed and release inventory
+      await getSupabase()
+        .from('checkout_sessions')
+        .update({ status: 'failed' })
+        .eq('id', session.id);
+      
+      await releaseStockBatch(
+        session.items.map((item: any) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        }))
+      ).catch(() => {});
+      
+      return cors.addHeaders(
+        NextResponse.json({ message: 'Failed to create order' }, { status: 500 }),
+        request
+      );
+    }
+
+    // Create order items
+    const orderItemsWithOrderId = orderItems.map(item => ({
+      ...item,
+      order_id: order.id,
+    }));
+
+    const { error: itemsError } = await getSupabase()
+      .from('order_items')
+      .insert(orderItemsWithOrderId);
+
+    if (itemsError) {
+      console.error('[BENEFIT Process] Order items creation error:', itemsError);
+      // Delete order and mark session as failed
+      await getSupabase()
+        .from('orders')
+        .delete()
+        .eq('id', order.id);
+      
+      await getSupabase()
+        .from('checkout_sessions')
+        .update({ status: 'failed' })
+        .eq('id', session.id);
+      
+      await releaseStockBatch(
+        session.items.map((item: any) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        }))
+      ).catch(() => {});
+      
+      return cors.addHeaders(
+        NextResponse.json({ message: 'Failed to create order items' }, { status: 500 }),
+        request
+      );
+    }
+
+    // Mark session as paid and link order
+    await getSupabase()
+      .from('checkout_sessions')
+      .update({ 
+        status: 'paid',
+        order_id: order.id 
+      })
+      .eq('id', session.id);
+
+    console.log('[BENEFIT Process] Payment successful, order created:', order.id);
 
     // Extract and store token asynchronously (non-blocking)
     // Only if feature is enabled and payment was successful
@@ -245,7 +387,7 @@ export async function POST(request: NextRequest) {
           userId: authResult.user.id,
           token,
           paymentId: responseData.paymentId,
-          orderId: orderId,
+          orderId: order.id,
           responseData, // For card details if available
         }).catch(error => {
           // Log but don't fail response - token storage is non-critical
@@ -261,6 +403,7 @@ export async function POST(request: NextRequest) {
       NextResponse.json({
         success: true,
         message: 'Payment processed successfully',
+        orderId: order.id,
         transactionDetails: {
           transId: responseData.transId,
           ref: responseData.ref,

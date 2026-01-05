@@ -26,12 +26,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { orderId, currency = 'BHD', amount, description, userToken } = body;
+    const { sessionId, currency = 'BHD', amount, description, userToken } = body;
 
     // Validation
-    if (!orderId) {
+    if (!sessionId) {
       return cors.addHeaders(
-        NextResponse.json({ message: 'orderId is required' }, { status: 400 }),
+        NextResponse.json({ message: 'sessionId is required' }, { status: 400 }),
         request
       );
     }
@@ -43,25 +43,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify order exists and belongs to user
-    const { data: order, error: orderError } = await getSupabase()
-      .from('orders')
-      .select('id, user_id, total, payment_status')
-      .eq('id', orderId)
+    // Verify checkout session exists and belongs to user
+    const { data: session, error: sessionError } = await getSupabase()
+      .from('checkout_sessions')
+      .select('id, user_id, total, payment_method, status')
+      .eq('id', sessionId)
       .eq('user_id', authResult.user.id)
+      .eq('status', 'initiated')
       .single();
 
-    if (orderError || !order) {
+    if (sessionError || !session) {
       return cors.addHeaders(
-        NextResponse.json({ message: 'Order not found' }, { status: 404 }),
-        request
-      );
-    }
-
-    // Check if order is already paid
-    if (order.payment_status === 'paid') {
-      return cors.addHeaders(
-        NextResponse.json({ message: 'Order is already paid' }, { status: 400 }),
+        NextResponse.json({ message: 'Checkout session not found or already processed' }, { status: 404 }),
         request
       );
     }
@@ -70,8 +63,8 @@ export async function POST(request: NextRequest) {
     // CRITICAL: EazyPay will append globalTransactionsId to returnUrl
     // Format: returnUrl?globalTransactionsId=...
     const baseUrl = process.env.CLIENT_URL || 'https://helloonebahrain.com';
-    const returnUrl = `${baseUrl}/pay/complete?orderId=${orderId}`;
-    const cancelUrl = `${baseUrl}/checkout/payment?orderId=${orderId}&cancelled=true`;
+    const returnUrl = `${baseUrl}/payment/eazypay/return?sessionId=${sessionId}`;
+    const cancelUrl = `${baseUrl}/checkout/payment?sessionId=${sessionId}&cancelled=true`;
     const webhookUrl = `${baseUrl}/api/payments/eazypay/webhook`;
 
     // CRITICAL: Format amount to 3 decimal places (e.g., "80.000")
@@ -86,34 +79,29 @@ export async function POST(request: NextRequest) {
       currency,
       amount: amountFormatted, // Use formatted amount
       appId: process.env.EAZYPAY_CHECKOUT_APP_ID!,
-      invoiceId: `ORDER_${orderId}`, // Required: Format as ORDER_<orderId>
+      invoiceId: `SESSION_${sessionId}`, // Required: Format as SESSION_<sessionId>
       paymentMethod: 'BENEFITGATEWAY,CREDITCARD,APPLEPAY', // Required: Enable all payment methods
       returnUrl,
       // Temporarily remove webhookUrl - some accounts don't support it
       // webhookUrl, // Uncomment if your EazyPay account has webhooks enabled
       userToken: userToken || undefined,
-      description: description || `Order #${orderId}`,
+      description: description || `Checkout Session #${sessionId.substring(0, 8)}`,
     });
 
-    // Update order with global transaction ID and user token
-    const updateData: any = {
-      global_transactions_id: invoiceResponse.globalTransactionsId,
-    };
-
-    if (invoiceResponse.userToken) {
-      updateData.user_token = invoiceResponse.userToken;
-    }
-
+    // Update checkout session with global transaction ID
     await getSupabase()
-      .from('orders')
-      .update(updateData)
-      .eq('id', orderId);
+      .from('checkout_sessions')
+      .update({
+        global_transactions_id: invoiceResponse.globalTransactionsId,
+      })
+      .eq('id', sessionId);
 
     return cors.addHeaders(
       NextResponse.json({
         paymentUrl: invoiceResponse.paymentUrl,
         globalTransactionsId: invoiceResponse.globalTransactionsId,
         userToken: invoiceResponse.userToken,
+        sessionId: sessionId,
       }),
       request
     );

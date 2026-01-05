@@ -128,6 +128,30 @@ function BenefitErrorContent() {
             </div>
           )}
 
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <svg
+                className="w-6 h-6 text-green-600 mr-2 flex-shrink-0 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div>
+                <h3 className="font-semibold text-green-900 mb-2">Your cart is intact</h3>
+                <p className="text-green-800 text-sm">
+                  Don't worry! Your items are still in your cart. You can try again or choose a different payment method.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-semibold text-blue-900 mb-2">What can you do?</h3>
             <ul className="list-disc list-inside text-blue-800 text-sm space-y-1">
@@ -143,13 +167,13 @@ function BenefitErrorContent() {
               href="/checkout/payment"
               className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition text-center font-semibold"
             >
-              Try Again
+              Try Payment Again
             </Link>
             <Link
               href="/cart"
               className="flex-1 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition text-center font-semibold"
             >
-              Back to Cart
+              View Cart
             </Link>
           </div>
 

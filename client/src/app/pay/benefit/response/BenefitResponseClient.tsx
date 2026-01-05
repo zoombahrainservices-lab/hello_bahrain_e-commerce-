@@ -18,16 +18,19 @@ function BenefitResponsePageContent() {
   const [transactionDetails, setTransactionDetails] = useState<any>(null);
 
   useEffect(() => {
-    const orderIdParam = searchParams.get('orderId');
+    const sessionIdParam = searchParams.get('sessionId');
     const trandataParam = searchParams.get('trandata');
+    
+    // Fallback: try to get sessionId from localStorage if not in URL
+    const sessionId = sessionIdParam || (typeof window !== 'undefined' 
+      ? window.localStorage.getItem('pending_checkout_session_id') 
+      : null);
 
-    if (!orderIdParam) {
+    if (!sessionId) {
       setStatus('failed');
-      setMessage('Missing order ID');
+      setMessage('Missing checkout session reference');
       return;
     }
-
-    setOrderId(orderIdParam);
 
     // Process BENEFIT response
     const processResponse = async () => {
@@ -37,18 +40,19 @@ function BenefitResponsePageContent() {
         if (trandataParam) {
           // Process trandata via API endpoint
           const response = await api.post('/api/payments/benefit/process-response', {
-            orderId: orderIdParam,
+            sessionId: sessionId,
             trandata: trandataParam,
           });
 
           const data = response.data;
 
-          if (data.success) {
+          if (data.success && data.orderId) {
             setStatus('success');
             setMessage('Payment successful! Thank you for your purchase.');
+            setOrderId(data.orderId);
             setTransactionDetails(data.transactionDetails);
             
-            // Clear cart after successful payment
+            // Clear cart ONLY after successful payment
             try {
               clearCart();
             } catch (error) {
@@ -56,63 +60,105 @@ function BenefitResponsePageContent() {
               // Don't block the success flow if cart clearing fails
             }
             
-            // Store recent order info for redirect detection (similar to other payment methods)
+            // Store recent order info for redirect detection
             if (typeof window !== 'undefined') {
               localStorage.setItem('hb_recent_order', JSON.stringify({
-                orderId: orderIdParam || null,
+                orderId: data.orderId,
                 timestamp: Date.now(),
+              }));
+              
+              // Remove pending session ID
+              window.localStorage.removeItem('pending_checkout_session_id');
+              
+              // Dispatch event to refresh orders list
+              window.dispatchEvent(new CustomEvent('orderPlaced', { 
+                detail: { orderId: data.orderId } 
               }));
             }
           } else {
             setStatus('failed');
             setMessage(data.message || 'Payment was not completed.');
+            // Remove pending session ID if payment failed
+            if (typeof window !== 'undefined') {
+              window.localStorage.removeItem('pending_checkout_session_id');
+            }
           }
         } else {
-          // No trandata - check order status from database
-          // This handles cases where payment was already processed
-          const orderResponse = await api.get(`/api/orders/my`);
-          const orders = orderResponse.data;
-          const order = Array.isArray(orders) 
-            ? orders.find((o: any) => (o.id === orderIdParam || o._id === orderIdParam)) 
-            : null;
-
-          if (order && (order.paymentStatus === 'paid' || order.payment_status === 'paid')) {
-            setStatus('success');
-            setMessage('Payment successful! Thank you for your purchase.');
-            setTransactionDetails({
-              transId: order.benefit_trans_id,
-              ref: order.benefit_ref,
-              authRespCode: order.benefit_auth_resp_code,
-            });
+          // No trandata - check if session has been processed
+          // This handles cases where payment was already processed via webhook
+          try {
+            const sessionResponse = await api.get(`/api/checkout-sessions/${sessionId}`);
+            const session = sessionResponse.data;
             
-            // Clear cart after successful payment
-            try {
-              clearCart();
-            } catch (error) {
-              console.error('Error clearing cart:', error);
-              // Don't block the success flow if cart clearing fails
+            if (session && session.status === 'paid' && session.order_id) {
+              setStatus('success');
+              setMessage('Payment successful! Thank you for your purchase.');
+              setOrderId(session.order_id);
+              
+              // Get order details for transaction info
+              const orderResponse = await api.get(`/api/orders/my`);
+              const orders = orderResponse.data;
+              const order = Array.isArray(orders) 
+                ? orders.find((o: any) => (o.id === session.order_id || o._id === session.order_id)) 
+                : null;
+              
+              if (order) {
+                setTransactionDetails({
+                  transId: order.benefit_trans_id,
+                  ref: order.benefit_ref,
+                  authRespCode: order.benefit_auth_resp_code,
+                });
+              }
+              
+              // Clear cart ONLY after successful payment
+              try {
+                clearCart();
+              } catch (error) {
+                console.error('Error clearing cart:', error);
+              }
+              
+              // Store recent order info
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('hb_recent_order', JSON.stringify({
+                  orderId: session.order_id,
+                  timestamp: Date.now(),
+                }));
+                window.localStorage.removeItem('pending_checkout_session_id');
+                window.dispatchEvent(new CustomEvent('orderPlaced', { 
+                  detail: { orderId: session.order_id } 
+                }));
+              }
+            } else if (session && (session.status === 'failed' || session.status === 'cancelled')) {
+              setStatus('failed');
+              setMessage('Payment was not completed.');
+              if (typeof window !== 'undefined') {
+                window.localStorage.removeItem('pending_checkout_session_id');
+              }
+            } else {
+              // Session not found or status unclear
+              setStatus('failed');
+              setMessage('Unable to verify payment status. Please check your orders or contact support.');
+              if (typeof window !== 'undefined') {
+                window.localStorage.removeItem('pending_checkout_session_id');
+              }
             }
-            
-            // Store recent order info for redirect detection (similar to other payment methods)
+          } catch (checkError: any) {
+            console.error('Error checking session status:', checkError);
+            setStatus('failed');
+            setMessage('Error verifying payment status. Please contact support.');
             if (typeof window !== 'undefined') {
-              localStorage.setItem('hb_recent_order', JSON.stringify({
-                orderId: orderIdParam || null,
-                timestamp: Date.now(),
-              }));
+              window.localStorage.removeItem('pending_checkout_session_id');
             }
-          } else if (order && (order.paymentStatus === 'failed' || order.payment_status === 'failed')) {
-            setStatus('failed');
-            setMessage('Payment was not completed.');
-          } else {
-            // Order not found or status unclear
-            setStatus('failed');
-            setMessage('Unable to verify payment status. Please check your orders or contact support.');
           }
         }
       } catch (error: any) {
         console.error('Error processing BENEFIT response:', error);
         setStatus('failed');
         setMessage(error.response?.data?.message || 'Error processing payment. Please contact support.');
+        // Remove pending session ID on error
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem('pending_checkout_session_id');
+        }
       }
     };
 
@@ -253,6 +299,14 @@ function BenefitResponsePageContent() {
           </div>
 
           <div className="flex gap-4">
+            {orderId && (
+              <Link
+                href={`/order/success?orderId=${orderId}`}
+                className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition text-center font-semibold"
+              >
+                View Order Details
+              </Link>
+            )}
             <Link
               href="/profile/orders"
               className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition text-center font-semibold"

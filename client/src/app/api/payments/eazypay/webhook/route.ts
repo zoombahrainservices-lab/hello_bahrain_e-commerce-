@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getSupabase } from '@/lib/db';
 import { queryTransaction } from '@/lib/services/eazypayCheckout';
-import { convertReservedToSold } from '@/lib/db-stock-helpers';
+import { releaseStockBatch } from '@/lib/db-stock-helpers';
+import { supabaseHelpers } from '@/lib/supabase-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,63 +61,181 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // CRITICAL: Find order by global transaction ID (primary key for webhook)
-    const { data: orders, error: findError } = await getSupabase()
-      .from('orders')
-      .select('id, payment_status, paid_on, inventory_status')
+    // CRITICAL: Find checkout session by global transaction ID (primary key for webhook)
+    const { data: sessions, error: findError } = await getSupabase()
+      .from('checkout_sessions')
+      .select('*')
       .eq('global_transactions_id', globalTransactionsId)
+      .eq('status', 'initiated')
       .limit(1);
 
-    if (findError || !orders || orders.length === 0) {
-      console.error('EazyPay webhook: Order not found', globalTransactionsId);
+    if (findError || !sessions || sessions.length === 0) {
+      console.error('EazyPay webhook: Checkout session not found', globalTransactionsId);
       // Return 200 to prevent retries for invalid transaction IDs
-      return NextResponse.json({ message: 'Order not found' }, { status: 200 });
+      return NextResponse.json({ message: 'Session not found' }, { status: 200 });
     }
 
-    const order = orders[0];
+    const session = sessions[0];
 
-    // CRITICAL: Idempotent update - only update if not already paid
-    if (order.payment_status === 'paid' && order.paid_on) {
-      return NextResponse.json({ message: 'Order already processed' }, { status: 200 });
-    }
-
-    // PRODUCTION HARDENING: Fast response - do minimal work here
-    // Query transaction details asynchronously if needed, but respond quickly
-    // For now, use webhook data directly and query later if needed
-    
-    // Update order immediately with webhook data
-    const updateData: any = {
-      payment_status: isPaid ? 'paid' : 'unpaid',
-      payment_raw_response: body, // Store webhook payload
-    };
-
-    if (isPaid) {
-      updateData.paid_on = new Date().toISOString();
-    }
-
-    // Fast update - respond quickly
-    const { error: updateError } = await getSupabase()
-      .from('orders')
-      .update(updateData)
-      .eq('id', order.id);
-
-    if (updateError) {
-      console.error('EazyPay webhook: Failed to update order', updateError);
-      // Still return 200 to prevent retries - log for manual review
-      return NextResponse.json({ message: 'Update failed but acknowledged' }, { status: 200 });
-    }
-
-    // Convert reserved inventory to sold when payment is confirmed
-    if (isPaid && order.inventory_status === 'reserved') {
-      const convertResult = await convertReservedToSold(order.id);
-      if (!convertResult.success) {
-        // Log error but don't fail webhook - inventory state can be corrected later
-        console.error('EazyPay webhook: Failed to convert reserved inventory to sold:', convertResult.error);
+    // Check if session already has an order (idempotency)
+    if (session.order_id) {
+      const { data: existingOrder } = await getSupabase()
+        .from('orders')
+        .select('id, payment_status')
+        .eq('id', session.order_id)
+        .single();
+      
+      if (existingOrder && existingOrder.payment_status === 'paid') {
+        return NextResponse.json({ message: 'Order already processed' }, { status: 200 });
       }
     }
 
+    // If payment failed, mark session as failed and release inventory
+    if (!isPaid) {
+      // Mark session as failed
+      await getSupabase()
+        .from('checkout_sessions')
+        .update({ 
+          status: 'failed',
+          inventory_released_at: new Date().toISOString(),
+        })
+        .eq('id', session.id);
+      
+      // Release reserved inventory
+      await releaseStockBatch(
+        session.items.map((item: any) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        }))
+      ).catch(releaseError => {
+        console.error('EazyPay webhook: Failed to release stock:', releaseError);
+      });
+      
+      // Return 200 quickly
+      return NextResponse.json({ message: 'Webhook processed - payment failed' }, { status: 200 });
+    }
+
+    // Payment successful - create order from session
+    // First, verify products still exist and get current data
+    const orderItems = [];
+
+    for (const item of session.items) {
+      const product = await supabaseHelpers.findProductById(item.productId);
+      
+      if (!product) {
+        console.error('EazyPay webhook: Product not found:', item.productId);
+        // Mark session as failed and release inventory
+        await getSupabase()
+          .from('checkout_sessions')
+          .update({ status: 'failed' })
+          .eq('id', session.id);
+        
+        await releaseStockBatch(
+          session.items.map((it: any) => ({
+            productId: it.productId,
+            quantity: it.quantity,
+          }))
+        ).catch(() => {});
+        
+        // Still return 200 to prevent retries
+        return NextResponse.json({ message: 'Product not found' }, { status: 200 });
+      }
+
+      orderItems.push({
+        product_id: product.id,
+        name: item.name || product.name,
+        price: item.price || product.price,
+        quantity: item.quantity,
+        image: item.image || product.image,
+      });
+    }
+
+    // Create order
+    const orderInsertData: any = {
+      user_id: session.user_id,
+      total: session.total,
+      status: 'pending',
+      payment_status: 'paid',
+      payment_method: session.payment_method,
+      shipping_address: session.shipping_address,
+      inventory_status: 'sold',
+      inventory_reserved_at: session.inventory_reserved_at,
+      paid_on: new Date().toISOString(),
+      payment_raw_response: body, // Store webhook payload
+      global_transactions_id: globalTransactionsId,
+    };
+
+    const { data: order, error: orderError } = await getSupabase()
+      .from('orders')
+      .insert(orderInsertData)
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error('EazyPay webhook: Order creation error:', orderError);
+      // Mark session as failed and release inventory
+      await getSupabase()
+        .from('checkout_sessions')
+        .update({ status: 'failed' })
+        .eq('id', session.id);
+      
+      await releaseStockBatch(
+        session.items.map((item: any) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        }))
+      ).catch(() => {});
+      
+      // Still return 200 to prevent retries
+      return NextResponse.json({ message: 'Order creation failed but acknowledged' }, { status: 200 });
+    }
+
+    // Create order items
+    const orderItemsWithOrderId = orderItems.map(item => ({
+      ...item,
+      order_id: order.id,
+    }));
+
+    const { error: itemsError } = await getSupabase()
+      .from('order_items')
+      .insert(orderItemsWithOrderId);
+
+    if (itemsError) {
+      console.error('EazyPay webhook: Order items creation error:', itemsError);
+      // Delete order and mark session as failed
+      await getSupabase()
+        .from('orders')
+        .delete()
+        .eq('id', order.id);
+      
+      await getSupabase()
+        .from('checkout_sessions')
+        .update({ status: 'failed' })
+        .eq('id', session.id);
+      
+      await releaseStockBatch(
+        session.items.map((item: any) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        }))
+      ).catch(() => {});
+      
+      // Still return 200 to prevent retries
+      return NextResponse.json({ message: 'Order items creation failed but acknowledged' }, { status: 200 });
+    }
+
+    // Mark session as paid and link order
+    await getSupabase()
+      .from('checkout_sessions')
+      .update({ 
+        status: 'paid',
+        order_id: order.id 
+      })
+      .eq('id', session.id);
+
+    console.log('EazyPay webhook: Payment successful, order created:', order.id);
+
     // CRITICAL: Return 200 quickly - webhook processing should be fast
-    // Additional details can be queried later via query endpoint
     return NextResponse.json({ message: 'Webhook processed successfully' }, { status: 200 });
   } catch (error: any) {
     console.error('EazyPay webhook error:', error);

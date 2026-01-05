@@ -15,101 +15,107 @@ export default function ReturnClient() {
   const [message, setMessage] = useState('Verifying payment…');
 
   useEffect(() => {
-    const orderId = params.get('orderId') ?? params.get('order.id');
+    const sessionId = params.get('sessionId');
+    const globalTransactionsId = params.get('globalTransactionsId');
 
-    if (!orderId) {
+    if (!sessionId) {
       setStatus('failed');
-      setMessage('Missing order reference.');
+      setMessage('Missing checkout session reference.');
       return;
     }
 
     const checkStatus = async () => {
       try {
-        const res = await fetch('/api/eazypay/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId }),
+        // Call session complete endpoint to verify payment and create order
+        const res = await api.post(`/api/checkout-sessions/${sessionId}/complete`, {
+          globalTransactionsId: globalTransactionsId || undefined,
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || data?.error || 'Status error');
+        const data = res.data;
 
-        const result = data.result;
-        const transactions = (data.transaction as any) || (data.transactions as any);
-        const lastTxn = Array.isArray(transactions) ? transactions[transactions.length - 1] : undefined;
-
-        const isSuccess =
-          result === 'SUCCESS' &&
-          lastTxn &&
-          (lastTxn.result === 'SUCCESS' || lastTxn.response?.acquirerCode === '00');
-
-        if (isSuccess) {
-          // Create the order using stored order data
-          let createdOrderId: string | null = null;
-          try {
-            const pendingOrderData = typeof window !== 'undefined' 
-              ? window.localStorage.getItem('pending_order_data') 
-              : null;
-
-            if (pendingOrderData) {
-              const orderData = JSON.parse(pendingOrderData);
-              // Create order with payment_status='paid' since payment was successful
-              const orderResponse = await api.post('/api/orders', {
-                ...orderData,
-                paymentStatus: 'paid',
-              });
-              
-              // Get order ID from response
-              const order = orderResponse.data;
-              createdOrderId = order?.id || order?._id || null;
-              
-              // Remove pending order data and shipping data from localStorage
-              if (typeof window !== 'undefined') {
-                window.localStorage.removeItem('pending_order_data');
-                window.localStorage.removeItem('hb_shipping_address');
-              }
-            }
-          } catch (orderErr: any) {
-            console.error('Error creating order after payment:', orderErr);
-            // Don't fail the whole flow if order creation fails - payment was successful
-          }
-
+        if (data.success && data.orderId) {
           setStatus('success');
           setMessage('Payment successful! Thank you for shopping with HelloOneBahrain.');
           
           // Store recent order info for redirect detection
           if (typeof window !== 'undefined') {
             localStorage.setItem('hb_recent_order', JSON.stringify({
-              orderId: createdOrderId || null,
+              orderId: data.orderId,
               timestamp: Date.now(),
             }));
+            
+            // Remove pending session ID from localStorage
+            window.localStorage.removeItem('pending_checkout_session_id');
           }
           
           // Clear cart and redirect to order success page
           clearCart();
           // Small delay to show success message before redirect
           setTimeout(() => {
-            if (createdOrderId) {
-              router.push(`/order/success?orderId=${createdOrderId}`);
-            } else {
-              router.push('/order/success');
-            }
+            router.push(`/order/success?orderId=${data.orderId}`);
           }, 1500);
+        } else if (data.pending) {
+          // Payment is still pending
+          setStatus('loading');
+          setMessage('Payment is being processed. Please wait...');
+          
+          // Poll a few times for pending payments
+          let pollCount = 0;
+          const maxPolls = 3;
+          const pollInterval = setInterval(async () => {
+            pollCount++;
+            try {
+              const pollRes = await api.post(`/api/checkout-sessions/${sessionId}/complete`, {
+                globalTransactionsId: globalTransactionsId || undefined,
+              });
+              
+              const pollData = pollRes.data;
+              
+              if (pollData.success && pollData.orderId) {
+                clearInterval(pollInterval);
+                setStatus('success');
+                setMessage('Payment successful! Thank you for shopping with HelloOneBahrain.');
+                
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('hb_recent_order', JSON.stringify({
+                    orderId: pollData.orderId,
+                    timestamp: Date.now(),
+                  }));
+                  window.localStorage.removeItem('pending_checkout_session_id');
+                }
+                
+                clearCart();
+                setTimeout(() => {
+                  router.push(`/order/success?orderId=${pollData.orderId}`);
+                }, 1500);
+              } else if (pollCount >= maxPolls) {
+                clearInterval(pollInterval);
+                setStatus('failed');
+                setMessage('Payment verification timed out. Please check your orders or contact support.');
+              }
+            } catch (pollErr) {
+              if (pollCount >= maxPolls) {
+                clearInterval(pollInterval);
+                setStatus('failed');
+                setMessage('Error verifying payment status.');
+              }
+            }
+          }, 2000); // Poll every 2 seconds
         } else {
           setStatus('failed');
-          setMessage('Payment failed or cancelled.');
-          // Remove pending order data if payment failed
+          setMessage(data.message || 'Payment failed or cancelled.');
+          // Remove pending session ID if payment failed
           if (typeof window !== 'undefined') {
-            window.localStorage.removeItem('pending_order_data');
+            window.localStorage.removeItem('pending_checkout_session_id');
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
         setStatus('failed');
-        setMessage('Error verifying payment.');
-        // Remove pending order data on error
+        setMessage(err.response?.data?.message || 'Error verifying payment.');
+        // Remove pending session ID on error
         if (typeof window !== 'undefined') {
-          window.localStorage.removeItem('pending_order_data');
+          window.localStorage.removeItem('pending_checkout_session_id');
         }
       }
     };
@@ -143,12 +149,45 @@ export default function ReturnClient() {
       )}
 
       {status === 'failed' && (
-        <a
-          href="/checkout/payment"
-          className="inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition"
-        >
-          Back to payment
-        </a>
+        <div className="space-y-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <svg
+                className="w-6 h-6 text-green-600 mr-2 flex-shrink-0 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div>
+                <h3 className="font-semibold text-green-900 mb-2">Your cart is intact</h3>
+                <p className="text-green-800 text-sm">
+                  Don't worry! Your items are still in your cart. You can try again or choose a different payment method.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <a
+              href="/checkout/payment"
+              className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition text-center font-semibold"
+            >
+              Try Payment Again
+            </a>
+            <a
+              href="/cart"
+              className="flex-1 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition text-center font-semibold"
+            >
+              View Cart
+            </a>
+          </div>
+        </div>
       )}
     </main>
   );

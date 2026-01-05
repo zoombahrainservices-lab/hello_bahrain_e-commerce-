@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { orderId, amount, currency = 'BHD' } = body;
+    const { sessionId, amount, currency = 'BHD' } = body;
 
     // Validation
-    if (!orderId) {
+    if (!sessionId) {
       return cors.addHeaders(
-        NextResponse.json({ message: 'orderId is required' }, { status: 400 }),
+        NextResponse.json({ message: 'sessionId is required' }, { status: 400 }),
         request
       );
     }
@@ -54,25 +54,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify order exists and belongs to user
-    const { data: order, error: orderError } = await getSupabase()
-      .from('orders')
-      .select('id, user_id, total, payment_status')
-      .eq('id', orderId)
+    // Verify checkout session exists and belongs to user
+    const { data: session, error: sessionError } = await getSupabase()
+      .from('checkout_sessions')
+      .select('id, user_id, total, payment_method, status')
+      .eq('id', sessionId)
       .eq('user_id', authResult.user.id)
+      .eq('status', 'initiated')
       .single();
 
-    if (orderError || !order) {
+    if (sessionError || !session) {
       return cors.addHeaders(
-        NextResponse.json({ message: 'Order not found' }, { status: 404 }),
-        request
-      );
-    }
-
-    // Check if order is already paid
-    if (order.payment_status === 'paid') {
-      return cors.addHeaders(
-        NextResponse.json({ message: 'Order is already paid' }, { status: 400 }),
+        NextResponse.json({ message: 'Checkout session not found or already processed' }, { status: 404 }),
         request
       );
     }
@@ -97,10 +90,10 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.CLIENT_URL || 'https://helloonebahrain.com';
     
     // Use ACK endpoint for responseURL (fast acknowledgement only)
-    const responseURL = `${baseUrl}/api/payments/benefit/ack?orderId=${orderId}`;
+    const responseURL = `${baseUrl}/api/payments/benefit/ack?sessionId=${sessionId}`;
     
     // Use error page for errorURL
-    const errorURL = `${baseUrl}/pay/benefit/error?orderId=${orderId}`;
+    const errorURL = `${baseUrl}/pay/benefit/error?sessionId=${sessionId}`;
 
     // Format amount to 3 decimal places for BHD
     const amountFormatted = parseFloat(amount.toString()).toFixed(3);
@@ -108,12 +101,6 @@ export async function POST(request: NextRequest) {
     // Generate numeric trackId (BenefitPay recommends numeric IDs)
     // Use timestamp-based ID to ensure uniqueness
     const numericTrackId = Date.now().toString();
-    
-    // Store the numeric trackId mapping in database for later lookup
-    await getSupabase()
-      .from('orders')
-      .update({ benefit_track_id: numericTrackId })
-      .eq('id', orderId);
     
     const trackId = numericTrackId;
 
@@ -227,15 +214,14 @@ export async function POST(request: NextRequest) {
         const paymentIdMatch = fullPaymentUrl.match(/[?&]PaymentID=([^&]+)/);
         const paymentId = paymentIdMatch ? paymentIdMatch[1] : null;
 
-        // Update order with BENEFIT payment ID (if we extracted it)
-        if (paymentId) {
-          await getSupabase()
-            .from('orders')
-            .update({
-              benefit_payment_id: paymentId,
-            })
-            .eq('id', orderId);
-        }
+        // Update checkout session with BENEFIT tracking IDs
+        await getSupabase()
+          .from('checkout_sessions')
+          .update({
+            benefit_track_id: numericTrackId,
+            benefit_payment_id: paymentId || null,
+          })
+          .eq('id', sessionId);
 
         return cors.addHeaders(
           NextResponse.json({
