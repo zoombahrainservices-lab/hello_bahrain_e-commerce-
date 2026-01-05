@@ -287,7 +287,18 @@ export default function PaymentPage() {
           }
           setWalletProcessing(false);
           
-          const errorMsg = error?.errorDescription || error?.message || 'BenefitPay Wallet payment failed';
+          let errorMsg = error?.errorDescription || error?.message || 'BenefitPay Wallet payment failed';
+          
+          // Check for specific error codes and provide helpful messages
+          if (errorMsg.includes('Merchant does not support payment') || 
+              errorMsg.includes('FOO-003') ||
+              error?.errorCode === 'FOO-003') {
+            errorMsg = 'Merchant account is not enabled for BenefitPay Wallet payments. ' +
+                      'Please contact BenefitPay support to activate wallet payments for your merchant account (Merchant ID: 3186, App ID: 1988588907). ' +
+                      'This is not a localhost issue - the account needs to be activated in BenefitPay\'s system.';
+            console.error('[BenefitPay] FOO-003 Error: Merchant account not enabled for wallet payments');
+            console.error('[BenefitPay] Action Required: Contact BenefitPay support to activate wallet payments');
+          }
           
           // Get session info from init response
           const maskedSessionId = sessionId ? `***${sessionId.substring(sessionId.length - 6)}` : 'unknown';
@@ -298,7 +309,7 @@ export default function PaymentPage() {
             message: errorMsg,
             sessionId: maskedSessionId,
             referenceAttempt,
-            canRetry: true,
+            canRetry: !errorMsg.includes('not enabled'), // Don't allow retry if account not enabled
           });
         },
         // Close callback
