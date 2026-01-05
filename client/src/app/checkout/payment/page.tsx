@@ -40,6 +40,19 @@ export default function PaymentPage() {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'benefit' | 'cod'>('card');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
+  // Faster Checkout states
+  const [savedTokens, setSavedTokens] = useState<Array<{
+    id: string;
+    card_alias: string | null;
+    last_4_digits: string | null;
+    card_type: string | null;
+    is_default: boolean;
+  }>>([]);
+  const [useSavedCard, setUseSavedCard] = useState(false);
+  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  const [saveCard, setSaveCard] = useState(false);
+  const [loadingTokens, setLoadingTokens] = useState(false);
 
   // Note: EazyPay Checkout now uses server-side invoice creation and redirect
   // No need to load Checkout.js script anymore
@@ -67,6 +80,44 @@ export default function PaymentPage() {
       router.push('/checkout');
     }
   }, [authLoading, user, items.length, router]);
+
+  // Fetch saved tokens if feature is enabled and user is logged in
+  useEffect(() => {
+    const fetchSavedTokens = async () => {
+      // Check if feature is enabled (frontend check)
+      const featureEnabled = process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true';
+      if (!featureEnabled || !user || paymentMethod !== 'benefit') {
+        return;
+      }
+
+      try {
+        setLoadingTokens(true);
+        const response = await api.get('/api/payments/benefit/tokens');
+        const tokens = response.data?.tokens || [];
+        setSavedTokens(tokens);
+        
+        // Auto-select default token if available
+        if (tokens.length > 0) {
+          const defaultToken = tokens.find((t: any) => t.is_default) || tokens[0];
+          setSelectedTokenId(defaultToken.id);
+          setUseSavedCard(true);
+        }
+      } catch (error) {
+        console.error('Error fetching saved tokens:', error);
+        // Don't show error to user - feature is optional
+      } finally {
+        setLoadingTokens(false);
+      }
+    };
+
+    if (user && paymentMethod === 'benefit') {
+      fetchSavedTokens();
+    } else {
+      setSavedTokens([]);
+      setUseSavedCard(false);
+      setSelectedTokenId(null);
+    }
+  }, [user, paymentMethod]);
 
   const startOnlinePayment = async () => {
     try {
@@ -106,17 +157,35 @@ export default function PaymentPage() {
       let paymentUrl: string;
 
       if (paymentMethod === 'benefit') {
-        // Use BENEFIT Payment Gateway for BenefitPay
-        const paymentResponse = await api.post('/api/payments/benefit/init', {
-          orderId,
-          amount: totalAmount,
-          currency: 'BHD',
-        });
+        // Check if using saved card (Faster Checkout)
+        const featureEnabled = process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true';
+        if (featureEnabled && useSavedCard && selectedTokenId) {
+          // Use token-based payment (Faster Checkout)
+          const paymentResponse = await api.post('/api/payments/benefit/init-with-token', {
+            orderId,
+            amount: totalAmount,
+            currency: 'BHD',
+            tokenId: selectedTokenId,
+          });
 
-        paymentUrl = paymentResponse.data.paymentUrl;
+          paymentUrl = paymentResponse.data.paymentUrl;
 
-        if (!paymentUrl) {
-          throw new Error('No payment URL received from BENEFIT gateway');
+          if (!paymentUrl) {
+            throw new Error('No payment URL received from BENEFIT gateway');
+          }
+        } else {
+          // Use regular BENEFIT Payment Gateway for BenefitPay
+          const paymentResponse = await api.post('/api/payments/benefit/init', {
+            orderId,
+            amount: totalAmount,
+            currency: 'BHD',
+          });
+
+          paymentUrl = paymentResponse.data.paymentUrl;
+
+          if (!paymentUrl) {
+            throw new Error('No payment URL received from BENEFIT gateway');
+          }
         }
       } else {
         // Use EazyPay for card payments
@@ -278,6 +347,64 @@ export default function PaymentPage() {
                     <p className="text-xs text-gray-500">Pay quickly using Bahrain&apos;s BenefitPay app.</p>
                   </div>
                 </label>
+
+                {/* Faster Checkout UI - Only show if feature enabled and BenefitPay selected */}
+                {paymentMethod === 'benefit' && process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && (
+                  <div className="ml-8 mt-2 space-y-3 border-l-2 border-primary-200 pl-4">
+                    {/* Saved Cards Dropdown */}
+                    {savedTokens.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={useSavedCard}
+                            onChange={(e) => {
+                              setUseSavedCard(e.target.checked);
+                              if (!e.target.checked) {
+                                setSelectedTokenId(null);
+                              } else if (savedTokens.length > 0) {
+                                const defaultToken = savedTokens.find(t => t.is_default) || savedTokens[0];
+                                setSelectedTokenId(defaultToken.id);
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          <span className="text-sm font-medium">Use saved card</span>
+                        </label>
+                        
+                        {useSavedCard && (
+                          <select
+                            value={selectedTokenId || ''}
+                            onChange={(e) => setSelectedTokenId(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            disabled={loadingTokens}
+                          >
+                            {savedTokens.map((token) => (
+                              <option key={token.id} value={token.id}>
+                                {token.card_alias || 
+                                 (token.last_4_digits ? `Card ending in ${token.last_4_digits}` : 'Saved Card')}
+                                {token.is_default ? ' (Default)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Save Card Checkbox - Only show if not using saved card */}
+                    {(!useSavedCard || savedTokens.length === 0) && (
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveCard}
+                          onChange={(e) => setSaveCard(e.target.checked)}
+                          className="rounded"
+                        />
+                        <span className="text-sm text-gray-600">Save card for faster checkout</span>
+                      </label>
+                    )}
+                  </div>
+                )}
 
                 <label className="flex items-center border rounded-lg px-4 py-3 cursor-pointer hover:border-primary-400 transition">
                   <input

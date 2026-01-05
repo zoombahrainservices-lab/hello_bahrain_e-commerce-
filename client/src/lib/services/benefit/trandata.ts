@@ -16,6 +16,7 @@ export interface BuildTrandataParams {
   udf3?: string;                     // User defined field 3 (optional)
   udf4?: string;                     // User defined field 4 (optional)
   udf5?: string;                     // User defined field 5 (optional)
+  token?: string;                    // Payment token for Faster Checkout (optional)
 }
 
 /**
@@ -38,7 +39,7 @@ export function buildPlainTrandata(params: BuildTrandataParams): string {
     : parseFloat(params.amt).toFixed(3);
 
   // Build trandata object per BENEFIT specification
-  const trandataObject = {
+  const trandataObject: any = {
     id: params.tranportalId,           // Tranportal ID
     password: params.tranportalPassword, // Tranportal password
     action: "1",                       // Action: 1 = Purchase
@@ -53,6 +54,18 @@ export function buildPlainTrandata(params: BuildTrandataParams): string {
     responseURL: params.responseURL,   // Success callback URL
     errorURL: params.errorURL,         // Error callback URL
   };
+
+  // Add token if provided (for Faster Checkout)
+  // Field name from BENEFIT docs: <TOKEN_FIELD_NAME> (placeholder until confirmed)
+  // Common field names: token, paymentToken, cardToken, savedToken
+  if (params.token) {
+    // Use 'token' as default field name - update based on BENEFIT documentation
+    trandataObject.token = params.token;
+    // Alternative field names to try if 'token' doesn't work:
+    // trandataObject.paymentToken = params.token;
+    // trandataObject.cardToken = params.token;
+    // trandataObject.savedToken = params.token;
+  }
 
   // Return as JSON array with single object (BENEFIT requirement)
   const trandataArray = [trandataObject];
@@ -152,6 +165,11 @@ export interface BenefitResponseData {
   udf3?: string;                // User defined field 3
   udf4?: string;                // User defined field 4
   udf5?: string;                // User defined field 5
+  token?: string;               // Payment token (for Faster Checkout)
+  paymentToken?: string;         // Alternative token field name
+  cardToken?: string;            // Alternative token field name
+  savedToken?: string;           // Alternative token field name
+  tokenId?: string;              // Alternative token field name
   [key: string]: any;           // Allow other fields
 }
 
@@ -220,4 +238,5 @@ export function getErrorMessage(responseData: BenefitResponseData): string {
 
   return 'Transaction failed';
 }
+
 

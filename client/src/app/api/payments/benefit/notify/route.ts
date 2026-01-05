@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/db';
 import { decryptTrandata } from '@/lib/services/benefit/crypto';
 import { parseResponseTrandata, isTransactionSuccessful } from '@/lib/services/benefit/trandata';
+import { storePaymentToken } from '@/lib/services/benefit/token-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,10 +89,10 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
 
-    // Find order by trackId
+    // Find order by trackId (include user_id for token storage)
     const { data: order, error: orderError } = await getSupabase()
       .from('orders')
-      .select('id, payment_status, total')
+      .select('id, user_id, payment_status, total')
       .eq('id', trackId)
       .single();
 
@@ -186,12 +187,45 @@ export async function POST(request: NextRequest) {
     const processingTime = Date.now() - startTime;
     console.log(`[BENEFIT Notify] Payment successful for order: ${trackId} (${processingTime}ms)`);
 
-    // Return acknowledgement
-    return NextResponse.json({
+    // CRITICAL: Return acknowledgement FIRST (fast response)
+    // Token storage happens asynchronously after response is sent
+    const response = NextResponse.json({
       status: 'success',
       message: 'Payment processed',
       trackId,
     }, { status: 200 });
+
+    // Extract and store token asynchronously (non-blocking, after response sent)
+    // Only if feature is enabled and payment was successful
+    if (process.env.BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && isSuccessful && order.user_id) {
+      // Extract token from responseData
+      // Field name from BENEFIT docs: check for common field names
+      const token = responseData.token || 
+                    responseData.paymentToken || 
+                    responseData.cardToken || 
+                    responseData.savedToken ||
+                    responseData.tokenId;
+      
+      if (token) {
+        // Store token asynchronously (don't await - let it run in background)
+        // This ensures notification handler responds quickly
+        storePaymentToken({
+          userId: order.user_id,
+          token,
+          paymentId: responseData.paymentId,
+          orderId: trackId,
+          responseData, // For card details if available
+        }).catch(error => {
+          // Log but don't fail notification - token storage is non-critical
+          console.error('[BENEFIT Notify] Token storage failed (non-blocking):', error);
+        });
+      } else if (process.env.NODE_ENV === 'development') {
+        // Log when token is expected but not found (for debugging)
+        console.log('[BENEFIT Notify] No token found in response data. Available fields:', Object.keys(responseData));
+      }
+    }
+
+    return response;
   } catch (error: any) {
     const processingTime = Date.now() - startTime;
     console.error(`[BENEFIT Notify] Error (${processingTime}ms):`, error);
@@ -203,4 +237,5 @@ export async function POST(request: NextRequest) {
     }, { status: 200 });
   }
 }
+
 

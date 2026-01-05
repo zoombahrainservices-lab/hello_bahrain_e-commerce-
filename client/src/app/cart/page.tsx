@@ -55,6 +55,13 @@ export default function CartPage() {
     }
     
     setOrderSuccess(hasOrderSuccess || hasRecentOrder);
+    
+    // Clear the recent order data immediately after setting orderSuccess
+    // This ensures subsequent visits show normal empty cart message
+    if (hasOrderSuccess || hasRecentOrder) {
+      localStorage.removeItem(RECENT_ORDER_KEY);
+    }
+    
     setCheckingOrder(false);
     
     // Clear the URL parameter after reading it

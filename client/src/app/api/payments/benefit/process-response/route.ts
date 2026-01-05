@@ -4,6 +4,7 @@ import { getSupabase } from '@/lib/db';
 import { cors } from '@/lib/cors';
 import { decryptTrandata } from '@/lib/services/benefit/crypto';
 import { parseResponseTrandata, isTransactionSuccessful } from '@/lib/services/benefit/trandata';
+import { storePaymentToken } from '@/lib/services/benefit/token-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -187,12 +188,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Update order as paid
+    // IMPORTANT: Also restore status to 'pending' if it was cancelled by the cron job
+    // This handles race conditions where the cron job cancelled the order before payment completed
     const updateData: any = {
       payment_status: 'paid',
       paid_on: new Date().toISOString(),
       payment_raw_response: responseData,
       inventory_status: 'sold', // Mark inventory as sold
       reservation_expires_at: null, // Clear reservation expiry
+      status: 'pending', // Ensure status is pending (not cancelled) for paid orders
     };
 
     // Store BENEFIT-specific fields
@@ -223,6 +227,35 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[BENEFIT Process] Payment successful for order:', orderId);
+
+    // Extract and store token asynchronously (non-blocking)
+    // Only if feature is enabled and payment was successful
+    if (process.env.BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && isSuccessful) {
+      // Extract token from responseData
+      // Field name from BENEFIT docs: check for common field names
+      const token = responseData.token || 
+                    responseData.paymentToken || 
+                    responseData.cardToken || 
+                    responseData.savedToken ||
+                    responseData.tokenId;
+      
+      if (token) {
+        // Store token asynchronously (don't await - let it run in background)
+        storePaymentToken({
+          userId: authResult.user.id,
+          token,
+          paymentId: responseData.paymentId,
+          orderId: orderId,
+          responseData, // For card details if available
+        }).catch(error => {
+          // Log but don't fail response - token storage is non-critical
+          console.error('[BENEFIT Process] Token storage failed (non-blocking):', error);
+        });
+      } else if (process.env.NODE_ENV === 'development') {
+        // Log when token is expected but not found (for debugging)
+        console.log('[BENEFIT Process] No token found in response data. Available fields:', Object.keys(responseData));
+      }
+    }
 
     return cors.addHeaders(
       NextResponse.json({
