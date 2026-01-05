@@ -362,7 +362,7 @@ export default function PaymentPage() {
                     className="mr-3"
                   />
                   <div>
-                    <p className="font-medium">Credit / Debit Card</p>
+                    <p className="font-medium">BenefitPay</p>
                     <p className="text-xs text-gray-500">Visa, Mastercard and other major cards.</p>
                   </div>
                 </label>
@@ -377,7 +377,7 @@ export default function PaymentPage() {
                     className="mr-3"
                   />
                   <div>
-                    <p className="font-medium">BenefitPay</p>
+                    <p className="font-medium">Credit / Debit Card</p>
                     <p className="text-xs text-gray-500">Pay quickly using Bahrain&apos;s BenefitPay app.</p>
                   </div>
                 </label>
