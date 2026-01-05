@@ -168,7 +168,7 @@ export default function ReturnClient() {
               <div>
                 <h3 className="font-semibold text-green-900 mb-2">Your cart is intact</h3>
                 <p className="text-green-800 text-sm">
-                  Don't worry! Your items are still in your cart. You can try again or choose a different payment method.
+                  Don&apos;t worry! Your items are still in your cart. You can try again or choose a different payment method.
                 </p>
               </div>
             </div>
