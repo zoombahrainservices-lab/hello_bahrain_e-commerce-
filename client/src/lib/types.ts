@@ -92,6 +92,7 @@ export interface Order {
   paymentStatus: 'unpaid' | 'paid';
   // Some API responses may use snake_case variants
   payment_status?: 'unpaid' | 'paid';
+  paymentMethod?: 'cod' | 'benefit' | 'card' | string;
   // Inventory reservation tracking
   inventory_status?: 'reserved' | 'sold' | 'released';
   inventoryReservedAt?: string;

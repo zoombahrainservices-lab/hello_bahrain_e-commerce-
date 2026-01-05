@@ -82,3 +82,4 @@ If you have other pages using `useSearchParams()`, they should also be wrapped i
 
 **Status**: ✅ Fixed! The error page should now work correctly.
 
+

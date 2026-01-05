@@ -69,3 +69,4 @@ The code already handles `'failed'` status - no changes needed!
 
 The migration file `RUN_BENEFIT_MIGRATION.sql` is now fixed and ready to run. Just copy and paste into Supabase SQL Editor!
 
+

@@ -43,3 +43,4 @@ Restart your server and test the payment flow. The redirects should now work cor
 
 **Status**: ✅ Fixed! The 303 redirect will change POST to GET and the page will load correctly.
 
+

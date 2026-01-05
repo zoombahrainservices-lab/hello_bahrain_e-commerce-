@@ -79,8 +79,9 @@ export async function POST(request: NextRequest) {
       total += parseFloat(product.price.toString()) * item.quantity;
     }
 
-    // Determine if order is paid (COD or explicit paymentStatus === 'paid')
-    const isPaid = paymentStatus === 'paid' || paymentMethod === 'cod';
+    // Determine if order is paid (ONLY explicit paymentStatus === 'paid')
+    // COD is unpaid until cash is collected
+    const isPaid = paymentStatus === 'paid';
     
     // Reserve stock atomically BEFORE creating order
     // This ensures stock is reserved before order creation for both paid and unpaid orders
@@ -100,10 +101,15 @@ export async function POST(request: NextRequest) {
       return cors.addHeaders(errorResponse, request);
     }
 
-    // Calculate reservation expiry (15 minutes from now for unpaid orders)
-    const reservationExpiresAt = !isPaid 
-      ? new Date(Date.now() + 15 * 60 * 1000).toISOString() 
-      : null;
+    // Calculate reservation expiry
+    // COD should not expire in 15 minutes (customers expect delivery later)
+    // Online payments expire in 15 minutes if unpaid
+    const shouldExpireQuickly = !isPaid && paymentMethod !== 'cod';
+    const reservationExpiresAt = shouldExpireQuickly
+      ? new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 min for online
+      : (!isPaid && paymentMethod === 'cod')
+        ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours for COD
+        : null;
 
     // Create order with inventory status
     const orderInsertData: any = {
@@ -111,6 +117,7 @@ export async function POST(request: NextRequest) {
       total,
       status: 'pending',
       payment_status: isPaid ? 'paid' : 'unpaid',
+      payment_method: paymentMethod || null,
       shipping_address: shippingAddress,
       inventory_status: isPaid ? 'sold' : 'reserved',
       inventory_reserved_at: new Date().toISOString(),

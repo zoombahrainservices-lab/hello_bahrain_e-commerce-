@@ -11,3 +11,4 @@ CREATE INDEX IF NOT EXISTS idx_orders_benefit_track_id ON orders(benefit_track_i
 -- Add comment for documentation
 COMMENT ON COLUMN orders.benefit_track_id IS 'Numeric trackId used for BenefitPay transactions (timestamp-based)';
 
+

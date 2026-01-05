@@ -133,3 +133,4 @@ npm run dev
 
 **You're almost there! Just update the credentials and run the SQL migration! 🚀**
 
+

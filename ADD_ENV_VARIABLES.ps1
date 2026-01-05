@@ -31,3 +31,4 @@ if (Test-Path $envFile) {
 Write-Host "`nPlease update the placeholder values with your actual BENEFIT credentials!" -ForegroundColor Cyan
 Write-Host "Edit: $envFile" -ForegroundColor Cyan
 
+

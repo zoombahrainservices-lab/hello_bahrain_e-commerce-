@@ -370,3 +370,4 @@ Your payment gateway implementation is now complete with:
 
 The system is ready for testing once you have the credentials from both EazyPay and BENEFIT.
 
+

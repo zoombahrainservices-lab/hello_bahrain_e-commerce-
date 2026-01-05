@@ -78,3 +78,4 @@ To verify the configuration:
 
 3. Check Vercel logs for any configuration errors
 
+

@@ -14,6 +14,12 @@ export const api = axios.create({
 // Add request interceptor for debugging and auth token
 api.interceptors.request.use(
   (config) => {
+    // Add cache buster for orders endpoint
+    if (config.url?.includes('/api/orders/my')) {
+      const separator = config.url.includes('?') ? '&' : '?';
+      config.url = `${config.url}${separator}_t=${Date.now()}`;
+    }
+
     if (typeof window !== 'undefined') {
       // Check both localStorage and cookie
       const localStorageToken = localStorage.getItem('token');

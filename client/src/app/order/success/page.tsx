@@ -26,6 +26,13 @@ function OrderSuccessClient() {
       console.error('Error clearing cart:', error);
       // Don't block the page if cart clearing fails
     }
+
+    // Dispatch event to refresh orders list
+    if (typeof window !== 'undefined' && id) {
+      window.dispatchEvent(new CustomEvent('orderPlaced', { 
+        detail: { orderId: id } 
+      }));
+    }
   }, [searchParams, clearCart]);
 
   if (!mounted) {
