@@ -87,7 +87,19 @@ function BenefitResponsePageContent() {
           } else {
             // Payment failed or canceled
             setStatus('failed');
-            setMessage(data.message || 'Payment was not completed.');
+            
+            // Show detailed error message if available
+            const errorMessage = data.message || data.error || 'Payment was not completed.';
+            setMessage(errorMessage);
+            
+            // Log error details for debugging
+            console.error('[Benefit Response] Payment failed:', {
+              message: data.message,
+              error: data.error,
+              details: data.details,
+              paymentId: data.paymentId,
+              trackId: data.trackId,
+            });
             
             // Show paymentId/trackId if available (for canceled/failed payments)
             if (data.paymentId || data.trackId) {
@@ -148,9 +160,22 @@ function BenefitResponsePageContent() {
             } else {
               // Payment failed or canceled
               setStatus('failed');
-              setMessage(data.message || 'Payment was not completed.');
               
-              // Show paymentId/trackId if available (for canceled payments)
+              // Show detailed error message if available
+              const errorMessage = data.message || data.error || 'Payment was not completed.';
+              setMessage(errorMessage);
+              
+              // Log error details for debugging
+              console.error('[Benefit Response] Payment failed (no trandata):', {
+                message: data.message,
+                error: data.error,
+                details: data.details,
+                paymentId: data.paymentId,
+                trackId: data.trackId,
+                sessionStatus: data.sessionStatus,
+              });
+              
+              // Show paymentId/trackId if available (for canceled/failed payments)
               if (data.paymentId || data.trackId) {
                 setTransactionDetails({
                   paymentId: data.paymentId,
@@ -172,9 +197,26 @@ function BenefitResponsePageContent() {
           }
         }
       } catch (error: any) {
-        console.error('Error processing BENEFIT response:', error);
+        console.error('[Benefit Response] Error processing BENEFIT response:', {
+          error,
+          response: error.response?.data,
+          message: error.message,
+          status: error.response?.status,
+        });
         setStatus('failed');
-        setMessage(error.response?.data?.message || 'Error processing payment. Please contact support.');
+        
+        // Show detailed error message
+        const errorMessage = error.response?.data?.message 
+          || error.response?.data?.error 
+          || error.message 
+          || 'Error processing payment. Please contact support.';
+        setMessage(errorMessage);
+        
+        // Show error details in development
+        if (process.env.NODE_ENV === 'development' && error.response?.data?.details) {
+          console.error('[Benefit Response] Error details:', error.response.data.details);
+        }
+        
         // Remove pending session ID on error
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem('pending_checkout_session_id');

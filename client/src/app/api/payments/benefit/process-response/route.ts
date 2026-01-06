@@ -270,12 +270,28 @@ export async function POST(request: NextRequest) {
 
     // Validate transaction
     const isSuccessful = isTransactionSuccessful(responseData);
+    
+    console.log('[BENEFIT Process] Transaction validation:', {
+      isSuccessful,
+      result: responseData.result,
+      authRespCode: responseData.authRespCode,
+      paymentId: responseData.paymentId,
+      trackId: responseData.trackId,
+      transId: responseData.transId,
+    });
 
     // Validate amount matches session
     if (responseData.amt) {
       const responseAmount = parseFloat(responseData.amt);
       const sessionAmount = parseFloat(session.total.toString());
       const amountDiff = Math.abs(responseAmount - sessionAmount);
+
+      console.log('[BENEFIT Process] Amount validation:', {
+        responseAmount,
+        sessionAmount,
+        difference: amountDiff,
+        withinTolerance: amountDiff <= 0.01,
+      });
 
       if (amountDiff > 0.01) { // Allow 0.01 difference for rounding
         console.error('[BENEFIT Process] Amount mismatch:', {
@@ -295,7 +311,12 @@ export async function POST(request: NextRequest) {
 
     // If payment failed, mark session as failed and release inventory
     if (!isSuccessful) {
-      console.log('[BENEFIT Process] Transaction failed:', responseData.result);
+      console.log('[BENEFIT Process] Transaction failed:', {
+        result: responseData.result,
+        authRespCode: responseData.authRespCode,
+        paymentId: responseData.paymentId,
+        trackId: responseData.trackId,
+      });
       
       // Mark session as failed
       await getSupabase()
@@ -329,15 +350,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Payment successful - create order from session
+    console.log('[BENEFIT Process] Payment successful, starting order creation', {
+      sessionId: session.id,
+      itemCount: session.items?.length || 0,
+      total: session.total,
+    });
+
     // First, verify products still exist and get current data
     const orderItems = [];
     let total = 0;
 
+    console.log('[BENEFIT Process] Processing order items:', {
+      itemCount: session.items?.length || 0,
+      items: session.items?.map((item: any) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        name: item.name,
+      })),
+    });
+
     for (const item of session.items) {
+      console.log('[BENEFIT Process] Looking up product:', item.productId);
       const product = await supabaseHelpers.findProductById(item.productId);
       
       if (!product) {
-        console.error('[BENEFIT Process] Product not found:', item.productId);
+        console.error('[BENEFIT Process] Product not found:', {
+          productId: item.productId,
+          itemName: item.name,
+          sessionId: session.id,
+        });
         // Mark session as failed and release inventory
         await getSupabase()
           .from('checkout_sessions')
@@ -349,13 +390,27 @@ export async function POST(request: NextRequest) {
             productId: it.productId,
             quantity: it.quantity,
           }))
-        ).catch(() => {});
+        ).catch((releaseError) => {
+          console.error('[BENEFIT Process] Failed to release stock after product not found:', releaseError);
+        });
         
         return cors.addHeaders(
-          NextResponse.json({ message: `Product not found: ${item.productId}` }, { status: 404 }),
+          NextResponse.json({ 
+            success: false,
+            message: `Product not found: ${item.productId}`,
+            error: 'PRODUCT_NOT_FOUND',
+          }, { status: 404 }),
           request
         );
       }
+
+      console.log('[BENEFIT Process] Product found:', {
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        inStock: product.in_stock,
+        stockQuantity: product.stock_quantity,
+      });
 
       orderItems.push({
         product_id: product.id,
@@ -367,6 +422,12 @@ export async function POST(request: NextRequest) {
 
       total += parseFloat((item.price || product.price).toString()) * item.quantity;
     }
+
+    console.log('[BENEFIT Process] Order items prepared:', {
+      itemCount: orderItems.length,
+      calculatedTotal: total,
+      sessionTotal: session.total,
+    });
 
     // Create order
     const orderInsertData: any = {
@@ -403,6 +464,17 @@ export async function POST(request: NextRequest) {
       console.log('[BENEFIT Process] Token ID received in udf7:', tokenId);
     }
 
+    console.log('[BENEFIT Process] Creating order with data:', {
+      userId: orderInsertData.user_id,
+      total: orderInsertData.total,
+      paymentMethod: orderInsertData.payment_method,
+      checkoutSessionId: orderInsertData.checkout_session_id,
+      itemCount: orderItems.length,
+      hasShippingAddress: !!orderInsertData.shipping_address,
+      hasBenefitTrackId: !!orderInsertData.benefit_track_id,
+      hasBenefitPaymentId: !!orderInsertData.benefit_payment_id,
+    });
+
     const { data: order, error: orderError } = await getSupabase()
       .from('orders')
       .insert(orderInsertData)
@@ -410,7 +482,19 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderError) {
-      console.error('[BENEFIT Process] Order creation error:', orderError);
+      console.error('[BENEFIT Process] Order creation error:', {
+        error: orderError,
+        code: orderError.code,
+        message: orderError.message,
+        details: orderError.details,
+        hint: orderError.hint,
+        orderInsertData: {
+          userId: orderInsertData.user_id,
+          total: orderInsertData.total,
+          checkoutSessionId: orderInsertData.checkout_session_id,
+          paymentMethod: orderInsertData.payment_method,
+        },
+      });
       
       // IDEMPOTENCY CHECK: If order already exists for this session, return success
       if (orderError.code === '23505' || orderError.message?.includes('unique') || orderError.message?.includes('duplicate')) {
@@ -466,15 +550,48 @@ export async function POST(request: NextRequest) {
           productId: item.productId,
           quantity: item.quantity,
         }))
-      ).catch(() => {});
+      ).catch((releaseError) => {
+        console.error('[BENEFIT Process] Failed to release stock after order creation error:', releaseError);
+      });
+      
+      // Return detailed error message to help with debugging
+      const errorMessage = orderError.message || 'Failed to create order';
+      const errorCode = orderError.code || 'ORDER_CREATION_FAILED';
+      
+      console.error('[BENEFIT Process] Returning error to frontend:', {
+        errorMessage,
+        errorCode,
+        orderErrorCode: orderError.code,
+      });
       
       return cors.addHeaders(
-        NextResponse.json({ message: 'Failed to create order' }, { status: 500 }),
+        NextResponse.json({ 
+          success: false,
+          message: `Failed to create order: ${errorMessage}`,
+          error: errorCode,
+          details: process.env.NODE_ENV === 'development' ? {
+            code: orderError.code,
+            message: orderError.message,
+            hint: orderError.hint,
+          } : undefined,
+        }, { status: 500 }),
         request
       );
     }
 
+    console.log('[BENEFIT Process] Order created successfully:', {
+      orderId: order.id,
+      userId: order.user_id,
+      total: order.total,
+      paymentStatus: order.payment_status,
+    });
+
     // Create order items
+    console.log('[BENEFIT Process] Creating order items:', {
+      orderId: order.id,
+      itemCount: orderItems.length,
+    });
+
     const orderItemsWithOrderId = orderItems.map(item => ({
       ...item,
       order_id: order.id,
@@ -485,8 +602,18 @@ export async function POST(request: NextRequest) {
       .insert(orderItemsWithOrderId);
 
     if (itemsError) {
-      console.error('[BENEFIT Process] Order items creation error:', itemsError);
+      console.error('[BENEFIT Process] Order items creation error:', {
+        error: itemsError,
+        code: itemsError.code,
+        message: itemsError.message,
+        details: itemsError.details,
+        hint: itemsError.hint,
+        orderId: order.id,
+        itemCount: orderItemsWithOrderId.length,
+      });
+      
       // Delete order and mark session as failed
+      console.log('[BENEFIT Process] Deleting order due to items creation failure:', order.id);
       await getSupabase()
         .from('orders')
         .delete()
@@ -502,13 +629,29 @@ export async function POST(request: NextRequest) {
           productId: item.productId,
           quantity: item.quantity,
         }))
-      ).catch(() => {});
+      ).catch((releaseError) => {
+        console.error('[BENEFIT Process] Failed to release stock after items creation error:', releaseError);
+      });
       
       return cors.addHeaders(
-        NextResponse.json({ message: 'Failed to create order items' }, { status: 500 }),
+        NextResponse.json({ 
+          success: false,
+          message: `Failed to create order items: ${itemsError.message || 'Unknown error'}`,
+          error: 'ORDER_ITEMS_CREATION_FAILED',
+          details: process.env.NODE_ENV === 'development' ? {
+            code: itemsError.code,
+            message: itemsError.message,
+            hint: itemsError.hint,
+          } : undefined,
+        }, { status: 500 }),
         request
       );
     }
+
+    console.log('[BENEFIT Process] Order items created successfully:', {
+      orderId: order.id,
+      itemCount: orderItems.length,
+    });
 
     // Mark session as paid and link order
     await getSupabase()

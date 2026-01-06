@@ -214,13 +214,24 @@ export function isTransactionSuccessful(responseData: BenefitResponseData): bool
   // Check result field (common success values: "CAPTURED", "SUCCESS", "APPROVED")
   const result = responseData.result?.toUpperCase();
   if (result === 'CAPTURED' || result === 'SUCCESS' || result === 'APPROVED') {
+    console.log('[BENEFIT Trandata] Transaction successful (result field):', result);
     return true;
   }
 
   // Check authRespCode (00 = approved)
   if (responseData.authRespCode === '00') {
+    console.log('[BENEFIT Trandata] Transaction successful (authRespCode):', responseData.authRespCode);
     return true;
   }
+
+  // Log failure details for debugging
+  console.log('[BENEFIT Trandata] Transaction not successful:', {
+    result: responseData.result,
+    resultUpper: result,
+    authRespCode: responseData.authRespCode,
+    paymentId: responseData.paymentId,
+    trackId: responseData.trackId,
+  });
 
   return false;
 }
