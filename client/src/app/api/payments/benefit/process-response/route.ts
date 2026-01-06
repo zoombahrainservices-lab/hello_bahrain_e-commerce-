@@ -100,6 +100,12 @@ export async function POST(request: NextRequest) {
     const trackId = responseData.trackId ? String(responseData.trackId) : null;
     const paymentId = responseData.paymentId || null;
 
+    console.log('[BENEFIT Process] Payment IDs:', {
+      paymentIdFromResponse: responseData.paymentId,
+      trackId: trackId,
+      sessionId: sessionId,
+    });
+
     let session;
     if (trackId) {
       const { data: sessionByTrackId, error: sessionError } = await getSupabase()
@@ -170,7 +176,7 @@ export async function POST(request: NextRequest) {
         // Extract transaction details from order if available
         const { data: orderWithDetails } = await getSupabase()
           .from('orders')
-          .select('benefit_trans_id, benefit_ref, benefit_auth_resp_code')
+          .select('benefit_trans_id, benefit_ref, benefit_auth_resp_code, benefit_payment_id')
           .eq('id', session.order_id)
           .single();
         
@@ -181,6 +187,7 @@ export async function POST(request: NextRequest) {
             orderId: existingOrder.id,
             transactionDetails: orderWithDetails ? {
               transId: orderWithDetails.benefit_trans_id,
+              paymentId: orderWithDetails.benefit_payment_id || responseData.paymentId,
               ref: orderWithDetails.benefit_ref,
               authRespCode: orderWithDetails.benefit_auth_resp_code,
             } : undefined,
@@ -444,6 +451,7 @@ export async function POST(request: NextRequest) {
         orderId: order.id,
         transactionDetails: {
           transId: responseData.transId,
+          paymentId: responseData.paymentId || session.benefit_payment_id,
           ref: responseData.ref,
           authRespCode: responseData.authRespCode,
         },

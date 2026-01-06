@@ -84,6 +84,12 @@ export async function POST(request: NextRequest) {
     const trackId = responseData.trackId ? String(responseData.trackId) : null;
     const paymentId = responseData.paymentId || null;
 
+    console.log('[BENEFIT Notify] Payment identifiers:', {
+      trackId,
+      paymentId,
+      transId: responseData.transId,
+    });
+
     if (!trackId && !paymentId) {
       console.error('[BENEFIT Notify] Missing trackId and paymentId');
       return NextResponse.json({

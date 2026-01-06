@@ -105,6 +105,7 @@ function BenefitResponsePageContent() {
               if (order) {
                 setTransactionDetails({
                   transId: order.benefit_trans_id,
+                  paymentId: order.benefit_payment_id,
                   ref: order.benefit_ref,
                   authRespCode: order.benefit_auth_resp_code,
                 });
@@ -271,6 +272,12 @@ function BenefitResponsePageContent() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Transaction ID:</span>
                     <span className="font-medium">{transactionDetails.transId}</span>
+                  </div>
+                )}
+                {transactionDetails.paymentId && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Payment ID:</span>
+                    <span className="font-medium">{transactionDetails.paymentId}</span>
                   </div>
                 )}
                 {transactionDetails.ref && (
