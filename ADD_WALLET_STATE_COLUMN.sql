@@ -10,23 +10,33 @@ ON checkout_sessions(wallet_state)
 WHERE wallet_state IS NOT NULL;
 
 -- Add constraint to ensure valid states
-ALTER TABLE checkout_sessions
-ADD CONSTRAINT IF NOT EXISTS checkout_sessions_wallet_state_check 
-CHECK (
-  wallet_state IS NULL OR 
-  wallet_state IN (
-    'INITIATED',
-    'WALLET_POPUP_OPENED',
-    'SDK_CALLBACK_SUCCESS',
-    'SDK_CALLBACK_ERROR',
-    'USER_CLOSED',
-    'PENDING_STATUS_CHECK',
-    'PAID',
-    'FAILED',
-    'EXPIRED',
-    'UNKNOWN_NEEDS_MANUAL_REVIEW'
-  )
-);
+-- Note: PostgreSQL doesn't support IF NOT EXISTS with ADD CONSTRAINT,
+-- so we use DO block to check if constraint exists first
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'checkout_sessions_wallet_state_check'
+  ) THEN
+    ALTER TABLE checkout_sessions
+    ADD CONSTRAINT checkout_sessions_wallet_state_check 
+    CHECK (
+      wallet_state IS NULL OR 
+      wallet_state IN (
+        'INITIATED',
+        'WALLET_POPUP_OPENED',
+        'SDK_CALLBACK_SUCCESS',
+        'SDK_CALLBACK_ERROR',
+        'USER_CLOSED',
+        'PENDING_STATUS_CHECK',
+        'PAID',
+        'FAILED',
+        'EXPIRED',
+        'UNKNOWN_NEEDS_MANUAL_REVIEW'
+      )
+    );
+  END IF;
+END $$;
 
 COMMENT ON COLUMN checkout_sessions.wallet_state IS 'Explicit state machine state for BenefitPay Wallet payment flow: INITIATED -> WALLET_POPUP_OPENED -> SDK_CALLBACK_* -> PENDING_STATUS_CHECK -> PAID/FAILED/EXPIRED';
 
