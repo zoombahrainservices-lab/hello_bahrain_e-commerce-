@@ -51,9 +51,75 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!trandata) {
+    // trandata is optional - if missing, we'll return session info (for canceled payments)
+    // First, look up session to check if it's already processed
+    let session;
+    const { data: sessionById, error: sessionError } = await getSupabase()
+      .from('checkout_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .eq('user_id', authResult.user.id)
+      .single();
+
+    if (!sessionError && sessionById) {
+      session = sessionById;
+    }
+
+    if (!session) {
       return cors.addHeaders(
-        NextResponse.json({ message: 'trandata is required' }, { status: 400 }),
+        NextResponse.json({ message: 'Checkout session not found' }, { status: 404 }),
+        request
+      );
+    }
+
+    // If no trandata provided (e.g., user canceled payment), return session info
+    if (!trandata) {
+      console.log('[BENEFIT Process] No trandata provided, returning session info', {
+        sessionId: session.id,
+        sessionStatus: session.status,
+        hasOrderId: !!session.order_id,
+        paymentId: session.benefit_payment_id,
+        trackId: session.benefit_track_id,
+      });
+      
+      // If session already has an order (webhook processed), return success
+      if (session.status === 'paid' && session.order_id) {
+        console.log('[BENEFIT Process] Session already paid via webhook, returning order details');
+        const { data: existingOrder } = await getSupabase()
+          .from('orders')
+          .select('id, payment_status, benefit_trans_id, benefit_payment_id, benefit_ref, benefit_auth_resp_code')
+          .eq('id', session.order_id)
+          .single();
+        
+        if (existingOrder && existingOrder.payment_status === 'paid') {
+          console.log('[BENEFIT Process] Returning success for webhook-processed order:', existingOrder.id);
+          return cors.addHeaders(
+            NextResponse.json({
+              success: true,
+              message: 'Payment successful',
+              orderId: existingOrder.id,
+              transactionDetails: {
+                transId: existingOrder.benefit_trans_id,
+                paymentId: existingOrder.benefit_payment_id || session.benefit_payment_id,
+                ref: existingOrder.benefit_ref,
+                authRespCode: existingOrder.benefit_auth_resp_code,
+              },
+            }),
+            request
+          );
+        }
+      }
+      
+      // Return session info with paymentId/trackId even if payment was canceled/failed
+      console.log('[BENEFIT Process] Returning cancel/failed status with paymentId/trackId');
+      return cors.addHeaders(
+        NextResponse.json({
+          success: false,
+          message: session.status === 'failed' ? 'Payment was not completed' : 'Payment canceled',
+          paymentId: session.benefit_payment_id,
+          trackId: session.benefit_track_id,
+          sessionStatus: session.status,
+        }),
         request
       );
     }
@@ -97,7 +163,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Look up checkout session by benefit_track_id or benefit_payment_id
+    // Look up checkout session by benefit_track_id or benefit_payment_id from trandata
+    // (We already have session from sessionId, but verify it matches trandata)
     const trackId = responseData.trackId ? String(responseData.trackId) : null;
     const paymentId = responseData.paymentId || null;
 
@@ -105,10 +172,13 @@ export async function POST(request: NextRequest) {
       paymentIdFromResponse: responseData.paymentId,
       trackId: trackId,
       sessionId: sessionId,
+      sessionPaymentId: session.benefit_payment_id,
+      sessionTrackId: session.benefit_track_id,
     });
 
-    let session;
-    if (trackId) {
+    // Verify session matches trandata (if trackId/paymentId provided)
+    if (trackId && session.benefit_track_id !== trackId) {
+      // Try to find session by trackId
       const { data: sessionByTrackId, error: sessionError } = await getSupabase()
         .from('checkout_sessions')
         .select('*')
@@ -122,7 +192,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If not found by trackId, try paymentId
-    if (!session && paymentId) {
+    if (paymentId && session.benefit_payment_id !== paymentId) {
       const { data: sessionByPaymentId, error: sessionError2 } = await getSupabase()
         .from('checkout_sessions')
         .select('*')
@@ -133,27 +203,6 @@ export async function POST(request: NextRequest) {
       if (!sessionError2 && sessionByPaymentId) {
         session = sessionByPaymentId;
       }
-    }
-
-    // If still not found and we have sessionId, use it directly
-    if (!session && sessionId) {
-      const { data: sessionById, error: sessionError3 } = await getSupabase()
-        .from('checkout_sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .eq('user_id', authResult.user.id)
-        .single();
-      
-      if (!sessionError3 && sessionById) {
-        session = sessionById;
-      }
-    }
-
-    if (!session) {
-      return cors.addHeaders(
-        NextResponse.json({ message: 'Checkout session not found' }, { status: 404 }),
-        request
-      );
     }
 
     console.log('[BENEFIT Process] Session found:', {
@@ -169,29 +218,23 @@ export async function POST(request: NextRequest) {
       
       const { data: existingOrder } = await getSupabase()
         .from('orders')
-        .select('id, payment_status')
+        .select('id, payment_status, benefit_trans_id, benefit_ref, benefit_auth_resp_code, benefit_payment_id')
         .eq('id', session.order_id)
         .single();
       
       if (existingOrder && existingOrder.payment_status === 'paid') {
-        // Extract transaction details from order if available
-        const { data: orderWithDetails } = await getSupabase()
-          .from('orders')
-          .select('benefit_trans_id, benefit_ref, benefit_auth_resp_code, benefit_payment_id')
-          .eq('id', session.order_id)
-          .single();
-        
+        // Return success (not "already processed") so frontend treats it as success
         return cors.addHeaders(
           NextResponse.json({
             success: true,
-            message: 'Payment already processed',
+            message: 'Payment successful',
             orderId: existingOrder.id,
-            transactionDetails: orderWithDetails ? {
-              transId: orderWithDetails.benefit_trans_id,
-              paymentId: orderWithDetails.benefit_payment_id || responseData.paymentId,
-              ref: orderWithDetails.benefit_ref,
-              authRespCode: orderWithDetails.benefit_auth_resp_code,
-            } : undefined,
+            transactionDetails: {
+              transId: existingOrder.benefit_trans_id,
+              paymentId: existingOrder.benefit_payment_id || responseData.paymentId || session.benefit_payment_id,
+              ref: existingOrder.benefit_ref,
+              authRespCode: existingOrder.benefit_auth_resp_code,
+            },
           }),
           request
         );
@@ -202,16 +245,23 @@ export async function POST(request: NextRequest) {
     if (session.order_id) {
       const { data: existingOrder } = await getSupabase()
         .from('orders')
-        .select('id, payment_status')
+        .select('id, payment_status, benefit_trans_id, benefit_ref, benefit_auth_resp_code, benefit_payment_id')
         .eq('id', session.order_id)
         .single();
       
       if (existingOrder && existingOrder.payment_status === 'paid') {
+        // Return success (not "already processed") so frontend treats it as success
         return cors.addHeaders(
           NextResponse.json({
             success: true,
-            message: 'Order already processed',
+            message: 'Payment successful',
             orderId: existingOrder.id,
+            transactionDetails: {
+              transId: existingOrder.benefit_trans_id,
+              paymentId: existingOrder.benefit_payment_id || responseData.paymentId || session.benefit_payment_id,
+              ref: existingOrder.benefit_ref,
+              authRespCode: existingOrder.benefit_auth_resp_code,
+            },
           }),
           request
         );
@@ -266,10 +316,13 @@ export async function POST(request: NextRequest) {
         console.error('[BENEFIT Process] Failed to release stock:', releaseError);
       });
       
+      // Return paymentId/trackId even on failure for user reference
       return cors.addHeaders(
         NextResponse.json({
           success: false,
           message: `Payment failed: ${responseData.result || 'Unknown error'}`,
+          paymentId: responseData.paymentId || session.benefit_payment_id,
+          trackId: responseData.trackId || session.benefit_track_id,
         }),
         request
       );
@@ -383,14 +436,15 @@ export async function POST(request: NextRequest) {
               .eq('id', session.id);
           }
           
+          // Return success (not "already processed") so frontend treats it as success
           return cors.addHeaders(
             NextResponse.json({
               success: true,
-              message: 'Payment already processed',
+              message: 'Payment successful',
               orderId: existingOrder.id,
               transactionDetails: {
                 transId: existingOrder.benefit_trans_id,
-                paymentId: existingOrder.benefit_payment_id,
+                paymentId: existingOrder.benefit_payment_id || responseData.paymentId || session.benefit_payment_id,
                 ref: existingOrder.benefit_ref,
                 authRespCode: existingOrder.benefit_auth_resp_code,
               },

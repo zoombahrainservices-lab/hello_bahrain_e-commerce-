@@ -39,14 +39,21 @@ function BenefitResponsePageContent() {
         // We need to process it on the server side
         if (trandataParam) {
           // Process trandata via API endpoint
+          console.log('[Benefit Response] Processing trandata for session:', sessionId);
           const response = await api.post('/api/payments/benefit/process-response', {
             sessionId: sessionId,
             trandata: trandataParam,
           });
 
           const data = response.data;
+          console.log('[Benefit Response] Process response result:', {
+            success: data.success,
+            hasOrderId: !!data.orderId,
+            hasTransactionDetails: !!data.transactionDetails,
+          });
 
           if (data.success && data.orderId) {
+            // Payment successful - treat as success regardless of message
             setStatus('success');
             setMessage('Payment successful! Thank you for your purchase.');
             setOrderId(data.orderId);
@@ -54,9 +61,11 @@ function BenefitResponsePageContent() {
             
             // Clear cart ONLY after successful payment
             try {
+              console.log('[Benefit Response] Clearing cart after successful payment');
               clearCart();
+              console.log('[Benefit Response] Cart cleared successfully');
             } catch (error) {
-              console.error('Error clearing cart:', error);
+              console.error('[Benefit Response] Error clearing cart:', error);
               // Don't block the success flow if cart clearing fails
             }
             
@@ -76,40 +85,47 @@ function BenefitResponsePageContent() {
               }));
             }
           } else {
+            // Payment failed or canceled
             setStatus('failed');
             setMessage(data.message || 'Payment was not completed.');
+            
+            // Show paymentId/trackId if available (for canceled/failed payments)
+            if (data.paymentId || data.trackId) {
+              setTransactionDetails({
+                paymentId: data.paymentId,
+                trackId: data.trackId,
+              });
+            }
+            
             // Remove pending session ID if payment failed
             if (typeof window !== 'undefined') {
               window.localStorage.removeItem('pending_checkout_session_id');
             }
           }
         } else {
-          // No trandata - check if session has been processed
-          // This handles cases where payment was already processed via webhook
+          // No trandata - call process-response without trandata to get session info
+          // This handles cases where payment was canceled or already processed via webhook
+          console.log('[Benefit Response] No trandata in URL, checking session status for:', sessionId);
           try {
-            const sessionResponse = await api.get(`/api/checkout-sessions/${sessionId}`);
-            const session = sessionResponse.data;
-            
-            if (session && session.status === 'paid' && session.order_id) {
+            const response = await api.post('/api/payments/benefit/process-response', {
+              sessionId: sessionId,
+              // trandata is intentionally omitted
+            });
+
+            const data = response.data;
+            console.log('[Benefit Response] Session status check result:', {
+              success: data.success,
+              hasOrderId: !!data.orderId,
+              hasPaymentId: !!data.paymentId,
+              message: data.message,
+            });
+
+            if (data.success && data.orderId) {
+              // Payment successful (webhook already processed)
               setStatus('success');
               setMessage('Payment successful! Thank you for your purchase.');
-              setOrderId(session.order_id);
-              
-              // Get order details for transaction info
-              const orderResponse = await api.get(`/api/orders/my`);
-              const orders = orderResponse.data;
-              const order = Array.isArray(orders) 
-                ? orders.find((o: any) => (o.id === session.order_id || o._id === session.order_id)) 
-                : null;
-              
-              if (order) {
-                setTransactionDetails({
-                  transId: order.benefit_trans_id,
-                  paymentId: order.benefit_payment_id,
-                  ref: order.benefit_ref,
-                  authRespCode: order.benefit_auth_resp_code,
-                });
-              }
+              setOrderId(data.orderId);
+              setTransactionDetails(data.transactionDetails);
               
               // Clear cart ONLY after successful payment
               try {
@@ -121,32 +137,35 @@ function BenefitResponsePageContent() {
               // Store recent order info
               if (typeof window !== 'undefined') {
                 localStorage.setItem('hb_recent_order', JSON.stringify({
-                  orderId: session.order_id,
+                  orderId: data.orderId,
                   timestamp: Date.now(),
                 }));
                 window.localStorage.removeItem('pending_checkout_session_id');
                 window.dispatchEvent(new CustomEvent('orderPlaced', { 
-                  detail: { orderId: session.order_id } 
+                  detail: { orderId: data.orderId } 
                 }));
               }
-            } else if (session && (session.status === 'failed' || session.status === 'cancelled')) {
-              setStatus('failed');
-              setMessage('Payment was not completed.');
-              if (typeof window !== 'undefined') {
-                window.localStorage.removeItem('pending_checkout_session_id');
-              }
             } else {
-              // Session not found or status unclear
+              // Payment failed or canceled
               setStatus('failed');
-              setMessage('Unable to verify payment status. Please check your orders or contact support.');
+              setMessage(data.message || 'Payment was not completed.');
+              
+              // Show paymentId/trackId if available (for canceled payments)
+              if (data.paymentId || data.trackId) {
+                setTransactionDetails({
+                  paymentId: data.paymentId,
+                  trackId: data.trackId,
+                });
+              }
+              
               if (typeof window !== 'undefined') {
                 window.localStorage.removeItem('pending_checkout_session_id');
               }
             }
           } catch (checkError: any) {
-            console.error('Error checking session status:', checkError);
+            console.error('Error checking payment status:', checkError);
             setStatus('failed');
-            setMessage('Error verifying payment status. Please contact support.');
+            setMessage(checkError.response?.data?.message || 'Error verifying payment status. Please contact support.');
             if (typeof window !== 'undefined') {
               window.localStorage.removeItem('pending_checkout_session_id');
             }
@@ -206,6 +225,27 @@ function BenefitResponsePageContent() {
                 </div>
               </div>
             </div>
+
+            {/* Show paymentId/trackId if available (for canceled payments) */}
+            {transactionDetails && (transactionDetails.paymentId || transactionDetails.trackId) && (
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <h2 className="font-semibold mb-2 text-sm text-gray-700">Payment Reference</h2>
+                <div className="space-y-1 text-sm">
+                  {transactionDetails.paymentId && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Payment ID:</span>
+                      <span className="font-medium">{transactionDetails.paymentId}</span>
+                    </div>
+                  )}
+                  {transactionDetails.trackId && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Track ID:</span>
+                      <span className="font-medium">{transactionDetails.trackId}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-4">
               <Link
