@@ -149,3 +149,4 @@ export function isValidSignature(signature: string): boolean {
   return base64Pattern.test(signature) && signature.length > 0;
 }
 
+

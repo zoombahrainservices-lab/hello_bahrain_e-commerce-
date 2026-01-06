@@ -298,18 +298,55 @@ export default function PaymentPage() {
         throw new Error('BenefitPay Wallet SDK is still loading. Please wait a moment and try again.');
       }
 
+      // Log timestamp when InApp.open() is called
+      const openCalledAt = new Date().toISOString();
+      console.log('[Wallet] InApp.open() called at:', openCalledAt);
+      
+      // Update session with open_called_at timestamp and state
+      try {
+        await Promise.all([
+          api.post('/api/checkout-sessions/update-wallet-timestamp', {
+            sessionId,
+            timestampType: 'open_called_at',
+            timestamp: openCalledAt,
+          }),
+          api.post('/api/checkout-sessions/update-wallet-state', {
+            sessionId,
+            state: 'WALLET_POPUP_OPENED',
+          }),
+        ]);
+      } catch (err) {
+        console.warn('[Wallet] Failed to log open_called_at timestamp or state:', err);
+      }
+
       window.InApp.open(
         signedParams,
         // Success callback - SDK success does NOT mean payment success
         async (result: any) => {
+          const callbackReturnedAt = new Date().toISOString();
+          console.log('[Wallet] SDK success callback received at:', callbackReturnedAt);
           console.log('[Wallet] SDK success callback:', result);
           console.log('[Wallet] SDK success callback (full):', JSON.stringify(result, null, 2));
+          
+          // Log callback timestamp
+          try {
+            await api.post('/api/checkout-sessions/update-wallet-timestamp', {
+              sessionId,
+              timestampType: 'callback_returned_at',
+              timestamp: callbackReturnedAt,
+            });
+          } catch (err) {
+            console.warn('[Wallet] Failed to log callback_returned_at timestamp:', err);
+          }
+          
           setWalletProcessing(false);
           // Start polling for payment status
           await pollPaymentStatus(referenceNumber, sessionId);
         },
         // Error callback - Enhanced logging and UI
         (error: any) => {
+          const callbackReturnedAt = new Date().toISOString();
+          console.error('[Wallet] SDK error callback received at:', callbackReturnedAt);
           console.error('[Wallet] SDK error callback:', error);
           console.error('[Wallet] SDK error callback (full):', JSON.stringify(error, null, 2));
           if (error?.errorCode) {
@@ -321,6 +358,24 @@ export default function PaymentPage() {
           if (error?.message) {
             console.error('[BenefitPay] Error Message:', error.message);
           }
+          
+          // Log callback timestamp and state
+          try {
+            Promise.all([
+              api.post('/api/checkout-sessions/update-wallet-timestamp', {
+                sessionId,
+                timestampType: 'callback_returned_at',
+                timestamp: callbackReturnedAt,
+              }),
+              api.post('/api/checkout-sessions/update-wallet-state', {
+                sessionId,
+                state: 'SDK_CALLBACK_ERROR',
+              }),
+            ]).catch((err) => console.warn('[Wallet] Failed to log callback_returned_at timestamp or state:', err));
+          } catch (err) {
+            console.warn('[Wallet] Failed to log callback_returned_at timestamp or state:', err);
+          }
+          
           setWalletProcessing(false);
           
           let errorMsg = error?.errorDescription || error?.message || 'BenefitPay Wallet payment failed';
@@ -334,6 +389,14 @@ export default function PaymentPage() {
                       'This is not a localhost issue - the account needs to be activated in BenefitPay\'s system.';
             console.error('[BenefitPay] FOO-003 Error: Merchant account not enabled for wallet payments');
             console.error('[BenefitPay] Action Required: Contact BenefitPay support to activate wallet payments');
+          } else if (errorMsg.includes('Reference number is already used') ||
+                     errorMsg.includes('FOO-002') ||
+                     error?.errorCode === 'FOO-002') {
+            errorMsg = 'This payment reference has already been used. Please try again - a new reference will be generated automatically.';
+            console.error('[BenefitPay] FOO-002 Error: Duplicate reference number');
+            console.error('[BenefitPay] Action: Retry will generate a new reference number');
+            // Allow retry for FOO-002
+            canRetry = true;
           }
           
           // Get session info from init response
@@ -350,7 +413,20 @@ export default function PaymentPage() {
         },
         // Close callback
         async () => {
-          console.log('[Wallet] SDK close callback');
+          const callbackReturnedAt = new Date().toISOString();
+          console.log('[Wallet] SDK close callback received at:', callbackReturnedAt);
+          
+          // Log callback timestamp
+          try {
+            await api.post('/api/checkout-sessions/update-wallet-timestamp', {
+              sessionId,
+              timestampType: 'callback_returned_at',
+              timestamp: callbackReturnedAt,
+            });
+          } catch (err) {
+            console.warn('[Wallet] Failed to log callback_returned_at timestamp:', err);
+          }
+          
           setWalletProcessing(false);
           // Check status once in case payment was completed before close
           try {
@@ -502,10 +578,33 @@ export default function PaymentPage() {
     setWalletPolling(true);
     const maxAttempts = 30; // 30 attempts * 3 seconds = 90 seconds max
     let attempts = 0;
+    let firstCheckLogged = false;
 
     const poll = async () => {
       attempts++;
       console.log(`[Wallet] Polling attempt ${attempts}/${maxAttempts}`);
+
+      // Log first check-status timestamp and state
+      if (!firstCheckLogged && attempts === 1) {
+        const firstCheckAt = new Date().toISOString();
+        console.log('[Wallet] First check-status call at:', firstCheckAt);
+        try {
+          await Promise.all([
+            api.post('/api/checkout-sessions/update-wallet-timestamp', {
+              sessionId,
+              timestampType: 'first_check_status_at',
+              timestamp: firstCheckAt,
+            }),
+            api.post('/api/checkout-sessions/update-wallet-state', {
+              sessionId,
+              state: 'PENDING_STATUS_CHECK',
+            }),
+          ]);
+        } catch (err) {
+          console.warn('[Wallet] Failed to log first_check_status_at timestamp or state:', err);
+        }
+        firstCheckLogged = true;
+      }
 
       const success = await checkPaymentStatus(referenceNumber, sessionId, false);
 
@@ -517,13 +616,37 @@ export default function PaymentPage() {
       if (attempts >= maxAttempts) {
         setWalletPolling(false);
         
+        console.log('[Wallet] Polling timeout reached (90 seconds), performing final check-status...');
+        
+        // Call final check-status once more before giving up
+        try {
+          const finalCheck = await checkPaymentStatus(referenceNumber, sessionId, false);
+          if (finalCheck) {
+            // Payment succeeded on final check
+            console.log('[Wallet] Payment confirmed on final check-status');
+            return;
+          }
+        } catch (err) {
+          console.log('[Wallet] Final check-status failed:', err);
+        }
+        
+        // Log timeout state after final check
+        try {
+          await api.post('/api/checkout-sessions/update-wallet-state', {
+            sessionId,
+            state: 'EXPIRED',
+          });
+        } catch (err) {
+          console.warn('[Wallet] Failed to update state to EXPIRED:', err);
+        }
+        
         // Get session info for display
         const maskedSessionId = sessionId ? `***${sessionId.substring(sessionId.length - 6)}` : 'unknown';
         
         setWalletError({
-          message: 'Payment status is taking longer than expected. You can manually check the status below.',
+          message: 'Payment status is taking longer than expected. The payment may still be processing. You can check your orders page or try again.',
           sessionId: maskedSessionId,
-          canRetry: false, // Don't allow retry, offer manual check instead
+          canRetry: true, // Allow retry after timeout
         });
         return;
       }

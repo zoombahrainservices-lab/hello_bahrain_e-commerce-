@@ -175,3 +175,4 @@ If you encounter issues:
 4. Enable debug mode (`BENEFITPAY_DEBUG=true`)
 5. Review `BENEFITPAY_WALLET_HARDENING_SUMMARY.md` for details
 
+

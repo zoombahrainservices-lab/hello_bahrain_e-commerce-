@@ -17,3 +17,4 @@ COMMENT ON COLUMN checkout_sessions.reference_number IS 'Current BenefitPay Wall
 COMMENT ON COLUMN checkout_sessions.reference_attempt IS 'Number of payment attempts for this session (increments on retry)';
 COMMENT ON COLUMN checkout_sessions.last_reference_at IS 'Timestamp of last reference number generation';
 
+

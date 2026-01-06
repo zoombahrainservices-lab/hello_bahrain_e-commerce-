@@ -382,12 +382,18 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Log final status timestamp
+      const finalStatusAt = new Date().toISOString();
+      console.log('[BenefitPay Check Status] Final status confirmed (PAID) at:', finalStatusAt);
+
       // Update checkout session
       const { error: updateError } = await getSupabase()
         .from('checkout_sessions')
         .update({
           status: 'paid',
           order_id: order.id,
+          wallet_state: 'PAID',
+          wallet_final_status_at: finalStatusAt,
           updated_at: new Date().toISOString(),
         })
         .eq('id', sessionId);
@@ -413,6 +419,10 @@ export async function POST(request: NextRequest) {
                            responseData.error_code || responseData.errorCode || 'Payment declined';
       console.log('[BenefitPay Check Status] Payment failed:', failureReason);
 
+      // Log final status timestamp
+      const finalStatusAt = new Date().toISOString();
+      console.log('[BenefitPay Check Status] Final status confirmed (FAILED) at:', finalStatusAt);
+
       // Release inventory if it was reserved
       if (session.inventory_reserved_at && !session.inventory_released_at) {
         try {
@@ -432,6 +442,8 @@ export async function POST(request: NextRequest) {
         .from('checkout_sessions')
         .update({
           status: 'failed',
+          wallet_state: 'FAILED',
+          wallet_final_status_at: finalStatusAt,
           inventory_released_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

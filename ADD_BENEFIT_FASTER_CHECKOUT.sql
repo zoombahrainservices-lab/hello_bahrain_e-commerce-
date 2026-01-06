@@ -38,3 +38,4 @@ COMMENT ON COLUMN benefit_payment_tokens.token_hash IS 'SHA-256 hash of token fo
 COMMENT ON COLUMN benefit_payment_tokens.payment_id IS 'Benefit payment ID that created this token (for idempotency)';
 COMMENT ON COLUMN benefit_payment_tokens.status IS 'Token status: active, expired, deleted';
 
+

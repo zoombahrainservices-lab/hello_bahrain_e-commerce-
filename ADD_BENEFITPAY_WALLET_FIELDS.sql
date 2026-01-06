@@ -21,3 +21,4 @@ COMMENT ON COLUMN orders.payment_raw_response IS 'Full JSON response from paymen
 -- Note: payment_method column already supports 'benefitpay_wallet' as it accepts VARCHAR/string values
 -- The existing payment_provider column can be used to distinguish between different providers
 
+

@@ -18,3 +18,4 @@ WHERE checkout_session_id IS NOT NULL;
 COMMENT ON COLUMN orders.checkout_session_id IS 'Reference to checkout session - ensures idempotency (one order per session)';
 COMMENT ON CONSTRAINT unique_checkout_session_id ON orders IS 'Prevents duplicate orders from the same checkout session';
 
+

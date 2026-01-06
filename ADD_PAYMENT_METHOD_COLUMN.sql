@@ -8,3 +8,4 @@ CREATE INDEX IF NOT EXISTS idx_orders_payment_method ON orders(payment_method) W
 -- Add comment
 COMMENT ON COLUMN orders.payment_method IS 'Payment method: cod, benefit, card, etc.';
 
+

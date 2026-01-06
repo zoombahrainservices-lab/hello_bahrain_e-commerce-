@@ -60,3 +60,4 @@ BENEFIT Gateway → POST /api/payments/benefit/callback-error → Process → GE
 ✅ **Fixed!** The POST redirect issue should now be resolved. Restart your server and test the payment flow.
 
 
+

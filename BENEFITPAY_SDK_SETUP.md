@@ -158,3 +158,4 @@ BENEFIT_ENDPOINT=https://api.test-benefitpay.bh/web/v1/merchant/transaction/init
 
 The wallet integration uses these same credentials automatically.
 
+

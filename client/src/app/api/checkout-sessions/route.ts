@@ -86,18 +86,26 @@ export async function POST(request: NextRequest) {
     // Create checkout session
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes expiry
 
+    // Prepare session data
+    const sessionInsertData: any = {
+      user_id: authResult.user.id,
+      items: items,
+      shipping_address: shippingAddress,
+      total: parseFloat(total.toString()),
+      payment_method: paymentMethod,
+      status: 'initiated',
+      inventory_reserved_at: new Date().toISOString(),
+      expires_at: expiresAt.toISOString(),
+    };
+
+    // Set initial wallet state for BenefitPay Wallet payments
+    if (paymentMethod === 'benefitpay_wallet') {
+      sessionInsertData.wallet_state = 'INITIATED';
+    }
+
     const { data: session, error: sessionError } = await getSupabase()
       .from('checkout_sessions')
-      .insert({
-        user_id: authResult.user.id,
-        items: items,
-        shipping_address: shippingAddress,
-        total: parseFloat(total.toString()),
-        payment_method: paymentMethod,
-        status: 'initiated',
-        inventory_reserved_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-      })
+      .insert(sessionInsertData)
       .select()
       .single();
 

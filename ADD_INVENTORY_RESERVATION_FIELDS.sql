@@ -108,3 +108,4 @@ COMMENT ON FUNCTION reserve_stock(UUID, INTEGER) IS 'Atomically reserves stock f
 COMMENT ON FUNCTION release_stock(UUID, INTEGER) IS 'Atomically releases reserved stock back to inventory. Locks product row and adds quantity. Returns new stock level.';
 
 
+
