@@ -95,6 +95,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const promotionalLabel = getPromotionalLabel();
   const secondaryImage = product.secondaryImage || (product.images && product.images.length > 1 ? product.images[1] : null);
+  const hasMultipleImages = !!secondaryImage || (product.images && product.images.length > 1);
   const displayImage = isHovered && secondaryImage ? secondaryImage : product.image;
 
   // Extract brand name from product name or use category
@@ -115,7 +116,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             fill
             className={`object-cover transition-opacity duration-300 ${
               isHovered && secondaryImage ? 'opacity-0' : 'opacity-100'
-            } group-hover:scale-105 transition-transform duration-300`}
+            } ${!hasMultipleImages ? 'group-hover:scale-105 transition-transform duration-300' : ''}`}
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
           />
           
@@ -127,7 +128,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               fill
               className={`object-cover transition-opacity duration-300 ${
                 isHovered ? 'opacity-100' : 'opacity-0'
-              } group-hover:scale-105 transition-transform duration-300`}
+              }`}
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
             />
           )}
