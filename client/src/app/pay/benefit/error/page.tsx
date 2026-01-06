@@ -14,6 +14,7 @@ function BenefitErrorContent() {
 
   useEffect(() => {
     const orderIdParam = searchParams.get('orderId');
+    const sessionIdParam = searchParams.get('sessionId');
     const trandataParam = searchParams.get('trandata');
     const errorTextParam = searchParams.get('ErrorText');
     const errorParam = searchParams.get('Error');
@@ -23,20 +24,52 @@ function BenefitErrorContent() {
 
     const processError = async () => {
       try {
+        let paymentIdFromTrandata: string | null = null;
+        let errorDetailsFromTrandata: any = null;
+
         if (trandataParam) {
           const response = await api.post('/api/payments/benefit/process-error', {
             orderId: orderIdParam,
+            sessionId: sessionIdParam, // Pass sessionId to endpoint
             trandata: trandataParam,
           });
           const data = response.data;
           setErrorMessage(data.message || 'Payment failed');
-          setErrorDetails(data.errorDetails);
+          errorDetailsFromTrandata = data.errorDetails;
+          paymentIdFromTrandata = data.errorDetails?.paymentId || null;
         } else {
           const errorMsg = errorTextParam || errorParam || 'Payment was not completed';
           setErrorMessage(errorMsg);
           if (paymentIdParam) {
-            setErrorDetails({ paymentId: paymentIdParam });
+            errorDetailsFromTrandata = { paymentId: paymentIdParam };
+            paymentIdFromTrandata = paymentIdParam;
           }
+        }
+
+        // If we have sessionId but no paymentId yet, fetch from checkout session
+        let paymentIdFromSession: string | null = null;
+        if (sessionIdParam && !paymentIdFromTrandata && !paymentIdParam) {
+          try {
+            const sessionResponse = await api.get(`/api/checkout-sessions/${sessionIdParam}`);
+            const session = sessionResponse.data;
+            if (session?.benefit_payment_id) {
+              paymentIdFromSession = session.benefit_payment_id;
+              console.log('[BENEFIT Error] Found payment ID from checkout session:', paymentIdFromSession);
+            }
+          } catch (sessionError) {
+            console.warn('[BENEFIT Error] Failed to fetch checkout session:', sessionError);
+            // Non-critical error, continue
+          }
+        }
+
+        // Combine error details, prioritizing trandata, then URL param, then session
+        const finalErrorDetails: any = errorDetailsFromTrandata || {};
+        if (paymentIdFromTrandata || paymentIdParam || paymentIdFromSession) {
+          finalErrorDetails.paymentId = paymentIdFromTrandata || paymentIdParam || paymentIdFromSession;
+        }
+        
+        if (Object.keys(finalErrorDetails).length > 0) {
+          setErrorDetails(finalErrorDetails);
         }
 
         if (orderIdParam) {

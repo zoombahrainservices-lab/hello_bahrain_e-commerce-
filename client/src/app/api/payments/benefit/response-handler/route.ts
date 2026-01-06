@@ -65,6 +65,12 @@ export async function POST(request: NextRequest) {
     const errorUrl = new URL('/pay/benefit/error', baseUrl);
     errorUrl.searchParams.set('error', 'server_error');
     
+    // Include sessionId if available so error page can fetch payment ID
+    const sessionId = request.nextUrl.searchParams.get('sessionId');
+    if (sessionId) {
+      errorUrl.searchParams.set('sessionId', sessionId);
+    }
+    
     return NextResponse.redirect(errorUrl, 303);
   }
 }

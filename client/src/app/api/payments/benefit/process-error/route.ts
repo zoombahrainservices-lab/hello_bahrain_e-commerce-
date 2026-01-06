@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth-middleware';
 import { cors } from '@/lib/cors';
 import { decryptTrandata } from '@/lib/services/benefit/crypto';
 import { parseResponseTrandata, getErrorMessage } from '@/lib/services/benefit/trandata';
+import { getSupabase } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,11 +18,12 @@ export async function OPTIONS(request: NextRequest) {
  * 
  * Request body:
  * - orderId: string (optional)
+ * - sessionId: string (optional) - Checkout session ID to fetch payment ID from
  * - trandata: string (required, encrypted hex string from BENEFIT)
  * 
  * Response:
  * - message: string (error message)
- * - errorDetails: object (if available)
+ * - errorDetails: object (if available, includes paymentId from trandata or session)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { trandata } = body;
+    const { trandata, sessionId } = body;
 
     if (!trandata) {
       return cors.addHeaders(
@@ -92,13 +94,36 @@ export async function POST(request: NextRequest) {
     // Get error message
     const errorMessage = getErrorMessage(responseData);
 
+    // Extract payment ID from trandata if available
+    let paymentId = responseData.paymentId || null;
+
+    // If no payment ID in trandata and sessionId provided, check checkout session
+    if (!paymentId && sessionId) {
+      try {
+        const { data: session, error: sessionError } = await getSupabase()
+          .from('checkout_sessions')
+          .select('benefit_payment_id')
+          .eq('id', sessionId)
+          .eq('user_id', authResult.user.id)
+          .single();
+
+        if (!sessionError && session?.benefit_payment_id) {
+          paymentId = session.benefit_payment_id;
+          console.log('[BENEFIT Error] Found payment ID from checkout session:', paymentId);
+        }
+      } catch (sessionError: any) {
+        console.warn('[BENEFIT Error] Failed to fetch checkout session for payment ID:', sessionError);
+        // Non-critical error, continue without session payment ID
+      }
+    }
+
     return cors.addHeaders(
       NextResponse.json({
         message: errorMessage,
         errorDetails: {
           result: responseData.result,
           authRespCode: responseData.authRespCode,
-          paymentId: responseData.paymentId,
+          paymentId: paymentId, // Include payment ID from trandata or session
         },
       }),
       request
