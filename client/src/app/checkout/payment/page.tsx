@@ -978,44 +978,26 @@ export default function PaymentPage() {
                   {/* Faster Checkout UI - Only show if feature enabled and Card (BENEFIT PG) selected */}
                   {paymentMethod === 'card' && process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && (
                     <div className="ml-8 mt-2 space-y-3 border-l-2 border-primary-200 pl-4">
-                      {/* Saved Cards Dropdown */}
+                      {/* Use Saved Card Checkbox - Only show if saved tokens exist */}
                       {savedTokens.length > 0 && (
-                        <div className="space-y-2">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={useSavedCard}
-                              onChange={(e) => {
-                                setUseSavedCard(e.target.checked);
-                                if (!e.target.checked) {
-                                  setSelectedTokenId(null);
-                                } else if (savedTokens.length > 0) {
-                                  const defaultToken = savedTokens.find(t => t.is_default) || savedTokens[0];
-                                  setSelectedTokenId(defaultToken.id);
-                                }
-                              }}
-                              className="rounded"
-                            />
-                            <span className="text-sm font-medium">Use saved card</span>
-                          </label>
-                          
-                          {useSavedCard && (
-                            <select
-                              value={selectedTokenId || ''}
-                              onChange={(e) => setSelectedTokenId(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                              disabled={loadingTokens}
-                            >
-                              {savedTokens.map((token) => (
-                                <option key={token.id} value={token.id}>
-                                  {token.card_alias || 
-                                   (token.last_4_digits ? `Card ending in ${token.last_4_digits}` : 'Saved Card')}
-                                  {token.is_default ? ' (Default)' : ''}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={useSavedCard}
+                            onChange={(e) => {
+                              setUseSavedCard(e.target.checked);
+                              if (!e.target.checked) {
+                                setSelectedTokenId(null);
+                              } else if (savedTokens.length > 0) {
+                                // Automatically use default card or first card
+                                const defaultToken = savedTokens.find(t => t.is_default) || savedTokens[0];
+                                setSelectedTokenId(defaultToken.id);
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          <span className="text-sm font-medium">Use saved card</span>
+                        </label>
                       )}
 
                       {/* Save Card Checkbox - Only show if not using saved card */}
