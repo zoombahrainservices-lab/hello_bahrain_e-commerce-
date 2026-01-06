@@ -18,16 +18,24 @@ function BenefitResponsePageContent() {
   const [message, setMessage] = useState('Processing payment...');
   const [orderId, setOrderId] = useState<string | null>(null);
   const [transactionDetails, setTransactionDetails] = useState<any>(null);
+  const [hasProcessed, setHasProcessed] = useState(false); // Prevent infinite loop
 
   // Refresh auth on mount (after payment gateway redirect)
   useEffect(() => {
-    console.log('[Benefit Response] Refreshing auth after payment gateway redirect');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Benefit Response] Refreshing auth after payment gateway redirect');
+    }
     fetchMe().catch(err => {
       console.error('[Benefit Response] Auth refresh failed:', err);
     });
   }, []); // Run once on mount
 
   useEffect(() => {
+    // Prevent processing multiple times
+    if (hasProcessed) {
+      return;
+    }
+
     const sessionIdParam = searchParams.get('sessionId');
     const trandataParam = searchParams.get('trandata');
     
@@ -49,18 +57,23 @@ function BenefitResponsePageContent() {
         // We need to process it on the server side
         if (trandataParam) {
           // Process trandata via API endpoint
-          console.log('[Benefit Response] Processing trandata for session:', sessionId);
+          setHasProcessed(true); // Mark as processed to prevent re-processing
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Benefit Response] Processing trandata for session:', sessionId);
+          }
           const response = await api.post('/api/payments/benefit/process-response', {
             sessionId: sessionId,
             trandata: trandataParam,
           });
 
           const data = response.data;
-          console.log('[Benefit Response] Process response result:', {
-            success: data.success,
-            hasOrderId: !!data.orderId,
-            hasTransactionDetails: !!data.transactionDetails,
-          });
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Benefit Response] Process response result:', {
+              success: data.success,
+              hasOrderId: !!data.orderId,
+              hasTransactionDetails: !!data.transactionDetails,
+            });
+          }
 
           if (data.success && data.orderId) {
             // Payment successful - treat as success regardless of message
@@ -71,9 +84,13 @@ function BenefitResponsePageContent() {
             
             // Clear cart ONLY after successful payment
             try {
-              console.log('[Benefit Response] Clearing cart after successful payment');
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[Benefit Response] Clearing cart after successful payment');
+              }
               clearCart();
-              console.log('[Benefit Response] Cart cleared successfully');
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[Benefit Response] Cart cleared successfully');
+              }
             } catch (error) {
               console.error('[Benefit Response] Error clearing cart:', error);
               // Don't block the success flow if cart clearing fails
@@ -127,7 +144,10 @@ function BenefitResponsePageContent() {
         } else {
           // No trandata - call process-response without trandata to get session info
           // This handles cases where payment was canceled or already processed via webhook
-          console.log('[Benefit Response] No trandata in URL, checking session status for:', sessionId);
+          setHasProcessed(true); // Mark as processed to prevent re-processing
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Benefit Response] No trandata in URL, checking session status for:', sessionId);
+          }
           try {
             const response = await api.post('/api/payments/benefit/process-response', {
               sessionId: sessionId,
@@ -135,12 +155,14 @@ function BenefitResponsePageContent() {
             });
 
             const data = response.data;
-            console.log('[Benefit Response] Session status check result:', {
-              success: data.success,
-              hasOrderId: !!data.orderId,
-              hasPaymentId: !!data.paymentId,
-              message: data.message,
-            });
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[Benefit Response] Session status check result:', {
+                success: data.success,
+                hasOrderId: !!data.orderId,
+                hasPaymentId: !!data.paymentId,
+                message: data.message,
+              });
+            }
 
             if (data.success && data.orderId) {
               // Payment successful (webhook already processed)
@@ -235,7 +257,7 @@ function BenefitResponsePageContent() {
     };
 
     processResponse();
-  }, [searchParams, clearCart]);
+  }, [searchParams]); // Removed clearCart from dependencies to prevent infinite loop
 
   if (status === 'loading') {
     return (

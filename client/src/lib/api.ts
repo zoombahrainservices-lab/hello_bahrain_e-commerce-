@@ -27,7 +27,11 @@ api.interceptors.request.use(
       const cookieToken = cookieMatch ? cookieMatch[1] : null;
       
       // Only log in development mode to avoid console spam
-      if (process.env.NODE_ENV === 'development') {
+      // Check both NODE_ENV and origin to ensure we're not in production
+      const isDevelopment = process.env.NODE_ENV === 'development' || 
+                           (typeof window !== 'undefined' && window.location.hostname === 'localhost');
+      
+      if (isDevelopment) {
         console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`, {
           baseURL: config.baseURL,
           origin: window.location.origin,
@@ -42,12 +46,12 @@ api.interceptors.request.use(
       if (localStorageToken && config.headers) {
         config.headers.Authorization = `Bearer ${localStorageToken}`;
         // Only log in development
-        if (process.env.NODE_ENV === 'development') {
+        if (isDevelopment) {
           console.log('✅ Added Authorization header to request');
         }
       } else {
         // Only log in development
-        if (process.env.NODE_ENV === 'development') {
+        if (isDevelopment) {
           console.log('⚠️ No token found - request will be unauthenticated');
         }
       }
