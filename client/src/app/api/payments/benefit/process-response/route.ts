@@ -357,6 +357,49 @@ export async function POST(request: NextRequest) {
 
     if (orderError) {
       console.error('[BENEFIT Process] Order creation error:', orderError);
+      
+      // IDEMPOTENCY CHECK: If order already exists for this session, return success
+      if (orderError.code === '23505' || orderError.message?.includes('unique') || orderError.message?.includes('duplicate')) {
+        console.log('[BENEFIT Process] Order may already exist, checking...');
+        
+        // Check if order already exists for this checkout session
+        const { data: existingOrder } = await getSupabase()
+          .from('orders')
+          .select('id, payment_status, benefit_trans_id, benefit_payment_id, benefit_ref, benefit_auth_resp_code')
+          .eq('checkout_session_id', session.id)
+          .single();
+        
+        if (existingOrder && existingOrder.payment_status === 'paid') {
+          console.log('[BENEFIT Process] Order already exists (idempotent), returning success');
+          
+          // Update session status if not already paid
+          if (session.status !== 'paid') {
+            await getSupabase()
+              .from('checkout_sessions')
+              .update({ 
+                status: 'paid',
+                order_id: existingOrder.id,
+              })
+              .eq('id', session.id);
+          }
+          
+          return cors.addHeaders(
+            NextResponse.json({
+              success: true,
+              message: 'Payment already processed',
+              orderId: existingOrder.id,
+              transactionDetails: {
+                transId: existingOrder.benefit_trans_id,
+                paymentId: existingOrder.benefit_payment_id,
+                ref: existingOrder.benefit_ref,
+                authRespCode: existingOrder.benefit_auth_resp_code,
+              },
+            }),
+            request
+          );
+        }
+      }
+      
       // Mark session as failed and release inventory
       await getSupabase()
         .from('checkout_sessions')

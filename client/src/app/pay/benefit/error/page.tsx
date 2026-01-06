@@ -21,6 +21,11 @@ function BenefitErrorContent() {
     const paymentIdParam = searchParams.get('paymentid');
 
     setOrderId(orderIdParam);
+    
+    // Fallback: try to get sessionId from localStorage if not in URL
+    const sessionId = sessionIdParam || (typeof window !== 'undefined' 
+      ? window.localStorage.getItem('pending_checkout_session_id') 
+      : null);
 
     const processError = async () => {
       try {
@@ -30,7 +35,7 @@ function BenefitErrorContent() {
         if (trandataParam) {
           const response = await api.post('/api/payments/benefit/process-error', {
             orderId: orderIdParam,
-            sessionId: sessionIdParam, // Pass sessionId to endpoint
+            sessionId: sessionId, // Pass sessionId to endpoint (from URL or localStorage)
             trandata: trandataParam,
           });
           const data = response.data;
@@ -48,9 +53,9 @@ function BenefitErrorContent() {
 
         // If we have sessionId but no paymentId yet, fetch from checkout session
         let paymentIdFromSession: string | null = null;
-        if (sessionIdParam && !paymentIdFromTrandata && !paymentIdParam) {
+        if (sessionId && !paymentIdFromTrandata && !paymentIdParam) {
           try {
-            const sessionResponse = await api.get(`/api/checkout-sessions/${sessionIdParam}`);
+            const sessionResponse = await api.get(`/api/checkout-sessions/${sessionId}`);
             const session = sessionResponse.data;
             if (session?.benefit_payment_id) {
               paymentIdFromSession = session.benefit_payment_id;
