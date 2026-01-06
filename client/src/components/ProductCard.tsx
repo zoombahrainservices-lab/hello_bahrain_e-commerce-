@@ -94,8 +94,29 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   const promotionalLabel = getPromotionalLabel();
-  const secondaryImage = product.secondaryImage || (product.images && product.images.length > 1 ? product.images[1] : null);
-  const hasMultipleImages = !!secondaryImage || (product.images && product.images.length > 1);
+  
+  // Find a secondary image that's different from the main image
+  const findSecondaryImage = () => {
+    // First check if there's an explicit secondaryImage field
+    if (product.secondaryImage && product.secondaryImage !== product.image) {
+      return product.secondaryImage;
+    }
+    
+    // Then check the images array for a different image
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      // Find the first image in the array that's different from the main image
+      for (const img of product.images) {
+        if (img && img !== product.image && img.trim() !== '') {
+          return img;
+        }
+      }
+    }
+    
+    return null;
+  };
+  
+  const secondaryImage = findSecondaryImage();
+  const hasMultipleImages = !!secondaryImage;
   const displayImage = isHovered && secondaryImage ? secondaryImage : product.image;
 
   // Extract brand name from product name or use category
