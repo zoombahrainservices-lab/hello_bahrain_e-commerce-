@@ -106,7 +106,6 @@ export async function POST(request: NextRequest) {
         .from('checkout_sessions')
         .select('*')
         .eq('benefit_track_id', trackId)
-        .eq('status', 'initiated')
         .eq('user_id', authResult.user.id)
         .single();
       
@@ -121,7 +120,6 @@ export async function POST(request: NextRequest) {
         .from('checkout_sessions')
         .select('*')
         .eq('benefit_payment_id', paymentId)
-        .eq('status', 'initiated')
         .eq('user_id', authResult.user.id)
         .single();
       
@@ -136,7 +134,6 @@ export async function POST(request: NextRequest) {
         .from('checkout_sessions')
         .select('*')
         .eq('id', sessionId)
-        .eq('status', 'initiated')
         .eq('user_id', authResult.user.id)
         .single();
       
@@ -152,7 +149,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if session already has an order (idempotency)
+    console.log('[BENEFIT Process] Session found:', {
+      sessionId: session.id,
+      status: session.status,
+      orderId: session.order_id,
+      trackId: session.benefit_track_id,
+    });
+
+    // If webhook already processed this payment, return existing order
+    if (session.status === 'paid' && session.order_id) {
+      console.log('[BENEFIT Process] Session already processed by webhook, returning existing order');
+      
+      const { data: existingOrder } = await getSupabase()
+        .from('orders')
+        .select('id, payment_status')
+        .eq('id', session.order_id)
+        .single();
+      
+      if (existingOrder && existingOrder.payment_status === 'paid') {
+        // Extract transaction details from order if available
+        const { data: orderWithDetails } = await getSupabase()
+          .from('orders')
+          .select('benefit_trans_id, benefit_ref, benefit_auth_resp_code')
+          .eq('id', session.order_id)
+          .single();
+        
+        return cors.addHeaders(
+          NextResponse.json({
+            success: true,
+            message: 'Payment already processed',
+            orderId: existingOrder.id,
+            transactionDetails: orderWithDetails ? {
+              transId: orderWithDetails.benefit_trans_id,
+              ref: orderWithDetails.benefit_ref,
+              authRespCode: orderWithDetails.benefit_auth_resp_code,
+            } : undefined,
+          }),
+          request
+        );
+      }
+    }
+
+    // Check if session already has an order (idempotency - for edge cases)
     if (session.order_id) {
       const { data: existingOrder } = await getSupabase()
         .from('orders')
