@@ -26,21 +26,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     console.log('📦 Token in localStorage:', token ? 'EXISTS (length: ' + token.length + ')' : 'MISSING');
     
-    // If not in localStorage, check cookie as backup
+    // Check cookie as backup
     if (!token && typeof window !== 'undefined') {
       const cookieMatch = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
       token = cookieMatch ? cookieMatch[1] : null;
       console.log('🍪 Token in cookie:', token ? 'EXISTS (length: ' + token.length + ')' : 'MISSING');
       
-      // If found in cookie but not in localStorage, sync them
       if (token) {
         localStorage.setItem('token', token);
         console.log('🔄 Synced token from cookie to localStorage');
       }
     }
     
+    // Check sessionStorage as last resort (survives page reloads)
+    if (!token && typeof window !== 'undefined') {
+      token = sessionStorage.getItem('token');
+      console.log('💾 Token in sessionStorage:', token ? 'EXISTS (length: ' + token.length + ')' : 'MISSING');
+      
+      if (token) {
+        localStorage.setItem('token', token);
+        console.log('🔄 Synced token from sessionStorage to localStorage');
+      }
+    }
+    
     if (!token) {
-      console.log('❌ No token found in localStorage or cookie - user not authenticated');
+      console.log('❌ No token found - user not authenticated');
       setUser(null);
       setLoading(false);
       return;
@@ -51,15 +61,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await api.get('/api/auth/me');
       console.log('✅ fetchMe SUCCESS - User:', response.data.user);
       setUser(response.data.user);
+      
+      // Store in sessionStorage for persistence across redirects
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('token', token);
+      }
     } catch (error: any) {
       console.log('❌ fetchMe FAILED:', {
         status: error.response?.status,
         message: error.response?.data?.message || error.message,
         error: error
       });
+      
+      // Retry once before giving up (handles temporary network issues)
+      try {
+        console.log('🔄 Retrying fetchMe...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        const retryResponse = await api.get('/api/auth/me');
+        console.log('✅ fetchMe RETRY SUCCESS');
+        setUser(retryResponse.data.user);
+        
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('token', token);
+        }
+        setLoading(false);
+        return;
+      } catch (retryError) {
+        console.log('❌ fetchMe RETRY FAILED');
+      }
+      
       setUser(null);
-      // Clear invalid token
+      // Clear invalid tokens
       localStorage.removeItem('token');
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('token');
+      }
       document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
     } finally {
       setLoading(false);
@@ -76,12 +112,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const response = await api.post('/api/auth/login', { identifier, password });
     console.log('✅ Login response:', response.data);
     setUser(response.data.user);
-    // Store token in localStorage AND cookie for maximum persistence
+    // Store token in localStorage, sessionStorage, AND cookie for maximum persistence
     if (response.data.token) {
-      console.log('💾 Storing token in localStorage (length:', response.data.token.length, ')');
+      console.log('💾 Storing token (length:', response.data.token.length, ')');
       localStorage.setItem('token', response.data.token);
-      
-      // Also store in a client-side cookie as backup
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('token', response.data.token);
+      }
       document.cookie = `token=${response.data.token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
       
       console.log('✅ Token stored! Verification:', localStorage.getItem('token') ? 'SUCCESS' : 'FAILED');
@@ -93,11 +130,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (name: string, email: string, password: string, phone: string) => {
     const response = await api.post('/api/auth/register', { name, email, password, phone });
     setUser(response.data.user);
-    // Store token in localStorage AND cookie for maximum persistence
+    // Store token in localStorage, sessionStorage, AND cookie for maximum persistence
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
-      
-      // Also store in a client-side cookie as backup
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('token', response.data.token);
+      }
       document.cookie = `token=${response.data.token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
     }
   };
@@ -106,10 +144,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     console.log('🚪 Logout called');
     await api.post('/api/auth/logout');
     setUser(null);
-    // Clear token from both localStorage and cookie
+    // Clear token from localStorage, sessionStorage, and cookie
     localStorage.removeItem('token');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('token');
+    }
     document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
-    console.log('✅ Logout complete - token removed from localStorage and cookie');
+    console.log('✅ Logout complete - token removed from localStorage, sessionStorage, and cookie');
   };
 
   return (

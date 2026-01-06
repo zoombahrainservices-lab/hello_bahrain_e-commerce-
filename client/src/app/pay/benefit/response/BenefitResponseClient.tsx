@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Status = 'loading' | 'success' | 'failed';
 
@@ -12,10 +13,19 @@ function BenefitResponsePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { clearCart } = useCart();
+  const { fetchMe } = useAuth();
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState('Processing payment...');
   const [orderId, setOrderId] = useState<string | null>(null);
   const [transactionDetails, setTransactionDetails] = useState<any>(null);
+
+  // Refresh auth on mount (after payment gateway redirect)
+  useEffect(() => {
+    console.log('[Benefit Response] Refreshing auth after payment gateway redirect');
+    fetchMe().catch(err => {
+      console.error('[Benefit Response] Auth refresh failed:', err);
+    });
+  }, []); // Run once on mount
 
   useEffect(() => {
     const sessionIdParam = searchParams.get('sessionId');

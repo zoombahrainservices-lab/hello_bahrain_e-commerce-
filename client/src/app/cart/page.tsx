@@ -34,19 +34,25 @@ export default function CartPage() {
       try {
         const { timestamp } = JSON.parse(recentOrderData);
         const timeSinceOrder = Date.now() - timestamp;
-        // If order was placed within last 30 seconds, redirect to success page
-        if (timeSinceOrder < 30000) {
+        
+        // CRITICAL FIX: Only redirect if cart is EMPTY
+        // If user has items, they're starting a new order - show cart normally
+        if (timeSinceOrder < 30000 && items.length === 0) {
           hasRecentOrder = true;
           const orderId = JSON.parse(recentOrderData).orderId;
-          // Redirect to success page
+          // Redirect to success page only if cart is empty
           if (orderId) {
             router.replace(`/order/success?orderId=${orderId}`);
           } else {
             router.replace('/order/success');
           }
           return;
-        } else {
-          // Remove old order data
+        } else if (timeSinceOrder >= 30000) {
+          // Remove old order data after 30 seconds
+          localStorage.removeItem(RECENT_ORDER_KEY);
+        }
+        // If cart has items, don't redirect - clear the marker
+        if (items.length > 0) {
           localStorage.removeItem(RECENT_ORDER_KEY);
         }
       } catch (e) {
@@ -55,13 +61,6 @@ export default function CartPage() {
     }
     
     setOrderSuccess(hasOrderSuccess || hasRecentOrder);
-    
-    // Clear the recent order data immediately after setting orderSuccess
-    // This ensures subsequent visits show normal empty cart message
-    if (hasOrderSuccess || hasRecentOrder) {
-      localStorage.removeItem(RECENT_ORDER_KEY);
-    }
-    
     setCheckingOrder(false);
     
     // Clear the URL parameter after reading it
@@ -69,7 +68,7 @@ export default function CartPage() {
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
-  }, [router]);
+  }, [router, items.length]); // Add items.length as dependency
 
   if (authLoading || checkingOrder) {
     return (

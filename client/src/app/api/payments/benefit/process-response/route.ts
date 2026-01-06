@@ -458,6 +458,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Store token ID from udf7 (Faster Checkout per spec v1.51)
+    // Note: benefit_token_id is optional - only add if tokenId exists
+    // If column doesn't exist, we'll handle it gracefully in error recovery
     const tokenId = responseData.udf7 || null;
     if (tokenId) {
       orderInsertData.benefit_token_id = tokenId;
@@ -473,13 +475,51 @@ export async function POST(request: NextRequest) {
       hasShippingAddress: !!orderInsertData.shipping_address,
       hasBenefitTrackId: !!orderInsertData.benefit_track_id,
       hasBenefitPaymentId: !!orderInsertData.benefit_payment_id,
+      hasBenefitTokenId: !!orderInsertData.benefit_token_id,
     });
 
-    const { data: order, error: orderError } = await getSupabase()
+    let order;
+    let orderError;
+    
+    // Try to create order
+    const orderResult = await getSupabase()
       .from('orders')
       .insert(orderInsertData)
       .select()
       .single();
+    
+    order = orderResult.data;
+    orderError = orderResult.error;
+
+    // Handle schema cache errors - retry without benefit_token_id if column doesn't exist
+    if (orderError && (
+      orderError.message?.includes('benefit_token_id') ||
+      orderError.message?.includes('schema cache') ||
+      orderError.message?.includes('column') && orderError.message?.includes('not found')
+    )) {
+      console.warn('[BENEFIT Process] Schema error detected (benefit_token_id column may not exist), retrying without token field:', {
+        error: orderError.message,
+        code: orderError.code,
+      });
+      
+      // Remove benefit_token_id and retry
+      const orderInsertDataWithoutToken = { ...orderInsertData };
+      delete orderInsertDataWithoutToken.benefit_token_id;
+      
+      console.log('[BENEFIT Process] Retrying order creation without benefit_token_id');
+      const retryResult = await getSupabase()
+        .from('orders')
+        .insert(orderInsertDataWithoutToken)
+        .select()
+        .single();
+      
+      order = retryResult.data;
+      orderError = retryResult.error;
+      
+      if (!orderError && tokenId) {
+        console.warn('[BENEFIT Process] Order created successfully but benefit_token_id could not be stored. Column may not exist. Please run ADD_BENEFIT_TOKEN_ID_TO_ORDERS.sql migration.');
+      }
+    }
 
     if (orderError) {
       console.error('[BENEFIT Process] Order creation error:', {
