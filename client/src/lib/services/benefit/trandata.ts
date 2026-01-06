@@ -16,7 +16,9 @@ export interface BuildTrandataParams {
   udf3?: string;                     // User defined field 3 (optional)
   udf4?: string;                     // User defined field 4 (optional)
   udf5?: string;                     // User defined field 5 (optional)
-  token?: string;                    // Payment token for Faster Checkout (optional)
+  udf7?: string;                     // Token ID for Faster Checkout (udf7 per spec v1.51)
+  udf8?: string;                     // Faster Checkout flag (should be "FC" when using token)
+  token?: string;                    // Payment token for Faster Checkout (legacy - use udf7 instead)
 }
 
 /**
@@ -55,16 +57,15 @@ export function buildPlainTrandata(params: BuildTrandataParams): string {
     errorURL: params.errorURL,         // Error callback URL
   };
 
-  // Add token if provided (for Faster Checkout)
-  // Field name from BENEFIT docs: <TOKEN_FIELD_NAME> (placeholder until confirmed)
-  // Common field names: token, paymentToken, cardToken, savedToken
-  if (params.token) {
-    // Use 'token' as default field name - update based on BENEFIT documentation
-    trandataObject.token = params.token;
-    // Alternative field names to try if 'token' doesn't work:
-    // trandataObject.paymentToken = params.token;
-    // trandataObject.cardToken = params.token;
-    // trandataObject.savedToken = params.token;
+  // Add Faster Checkout token per spec v1.51
+  // udf7 = Token ID, udf8 = "FC" flag
+  if (params.udf7) {
+    trandataObject.udf7 = params.udf7; // Token ID
+    trandataObject.udf8 = params.udf8 || "FC"; // Faster Checkout flag (default to "FC")
+  } else if (params.token) {
+    // Legacy support: if token provided but not udf7, use token as udf7
+    trandataObject.udf7 = params.token;
+    trandataObject.udf8 = "FC";
   }
 
   // Return as JSON array with single object (BENEFIT requirement)
@@ -165,7 +166,10 @@ export interface BenefitResponseData {
   udf3?: string;                // User defined field 3
   udf4?: string;                // User defined field 4
   udf5?: string;                // User defined field 5
-  token?: string;               // Payment token (for Faster Checkout)
+  udf7?: string;                // Token ID (returned on successful payment per spec v1.51)
+  udf8?: string;                // Faster Checkout flag (sent as "FC" in request)
+  udf9?: string;                // Token deletion flag ("DELETED" when user deletes all cards)
+  token?: string;               // Payment token (legacy - use udf7 instead)
   paymentToken?: string;         // Alternative token field name
   cardToken?: string;            // Alternative token field name
   savedToken?: string;           // Alternative token field name

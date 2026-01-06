@@ -124,7 +124,8 @@ export async function POST(request: NextRequest) {
     
     const trackId = numericTrackId;
 
-    // Build plain trandata WITH TOKEN
+    // Build plain trandata WITH TOKEN per spec v1.51
+    // udf7 = Token ID, udf8 = "FC" flag
     const trandataParams = {
       amt: amountFormatted,
       trackId,
@@ -133,8 +134,14 @@ export async function POST(request: NextRequest) {
       tranportalId,
       tranportalPassword,
       udf1: "", // Keep empty per BENEFIT recommendation
-      token: token, // Include saved token for Faster Checkout
+      udf7: token, // Token ID for Faster Checkout (per spec v1.51)
+      udf8: "FC", // Faster Checkout flag (per spec v1.51)
     };
+    
+    console.log('[BENEFIT Init With Token] Using Faster Checkout:', {
+      udf7: token.substring(0, 10) + '...',
+      udf8: 'FC',
+    });
 
     // Validate parameters
     try {

@@ -355,35 +355,64 @@ export async function POST(request: NextRequest) {
       orderId: order.id,
     }, { status: 200 });
 
-    // Extract and store token asynchronously (non-blocking, after response sent)
-    // Only if feature is enabled and payment was successful
+    // Handle Faster Checkout token per spec v1.51
     if (process.env.BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && isSuccessful && session.user_id) {
-      // Extract token from responseData
-      // Field name from BENEFIT docs: check for common field names
-      const token = responseData.token || 
-                    responseData.paymentToken || 
-                    responseData.cardToken || 
-                    responseData.savedToken ||
-                    responseData.tokenId;
-      
-      if (token) {
-        // Store token asynchronously (don't await - let it run in background)
-        // This ensures notification handler responds quickly
-        storePaymentToken({
-          userId: session.user_id,
-          token,
-          paymentId: responseData.paymentId,
-          orderId: order.id,
-          responseData, // For card details if available
-        }).catch(error => {
-          // Log but don't fail notification - token storage is non-critical
-          console.error('[BENEFIT Notify] Token storage failed (non-blocking):', error);
-        });
-      } else if (process.env.NODE_ENV === 'development') {
-        // Log when token is expected but not found (for debugging)
-        console.log('[BENEFIT Notify] No token found in response data. Available fields:', Object.keys(responseData));
+      // Check for token deletion (udf9 = "DELETED")
+      if (responseData.udf9 === 'DELETED') {
+        console.log('[BENEFIT Notify] Token deletion detected (udf9=DELETED)');
+        
+        // Mark token as deleted if we have tokenId from udf7
+        const tokenId = responseData.udf7;
+        if (tokenId) {
+          const crypto = require('crypto');
+          const tokenHash = crypto.createHash('sha256').update(tokenId).digest('hex');
+          await getSupabase()
+            .from('benefit_payment_tokens')
+            .update({ status: 'deleted', updated_at: new Date().toISOString() })
+            .eq('token_hash', tokenHash)
+            .eq('user_id', session.user_id)
+            .catch(error => {
+              console.error('[BENEFIT Notify] Failed to mark token as deleted:', error);
+            });
+        }
+      } else {
+        // Extract token from udf7 (per spec v1.51) or fallback to legacy fields
+        const token = responseData.udf7 || 
+                      responseData.token || 
+                      responseData.paymentToken || 
+                      responseData.cardToken || 
+                      responseData.savedToken ||
+                      responseData.tokenId;
+        
+        if (token) {
+          console.log('[BENEFIT Notify] Token received (udf7 or legacy field):', token.substring(0, 10) + '...');
+          
+          // Store token asynchronously (don't await - let it run in background)
+          // This ensures notification handler responds quickly
+          storePaymentToken({
+            userId: session.user_id,
+            token,
+            paymentId: responseData.paymentId,
+            orderId: order.id,
+            responseData, // For card details if available
+          }).catch(error => {
+            // Log but don't fail notification - token storage is non-critical
+            console.error('[BENEFIT Notify] Token storage failed (non-blocking):', error);
+          });
+        } else if (process.env.NODE_ENV === 'development') {
+          // Log when token is expected but not found (for debugging)
+          console.log('[BENEFIT Notify] No token found in response data. Available fields:', Object.keys(responseData));
+          console.log('[BENEFIT Notify] udf7:', responseData.udf7, 'udf8:', responseData.udf8, 'udf9:', responseData.udf9);
+        }
       }
     }
+    
+    // Log Faster Checkout fields for observability
+    console.log('[BENEFIT Notify] Faster Checkout fields:', {
+      udf7: responseData.udf7 ? responseData.udf7.substring(0, 10) + '...' : 'not present',
+      udf8: responseData.udf8 || 'not present',
+      udf9: responseData.udf9 || 'not present',
+    });
 
     return response;
   } catch (error: any) {

@@ -7,6 +7,7 @@ import { parseResponseTrandata, isTransactionSuccessful } from '@/lib/services/b
 import { storePaymentToken } from '@/lib/services/benefit/token-storage';
 import { releaseStockBatch } from '@/lib/db-stock-helpers';
 import { supabaseHelpers } from '@/lib/supabase-helpers';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -340,6 +341,13 @@ export async function POST(request: NextRequest) {
     if (responseData.authRespCode) {
       orderInsertData.benefit_auth_resp_code = responseData.authRespCode;
     }
+    
+    // Store token ID from udf7 (Faster Checkout per spec v1.51)
+    const tokenId = responseData.udf7 || null;
+    if (tokenId) {
+      orderInsertData.benefit_token_id = tokenId;
+      console.log('[BENEFIT Process] Token ID received in udf7:', tokenId);
+    }
 
     const { data: order, error: orderError } = await getSupabase()
       .from('orders')
@@ -415,34 +423,63 @@ export async function POST(request: NextRequest) {
 
     console.log('[BENEFIT Process] Payment successful, order created:', order.id);
 
-    // Extract and store token asynchronously (non-blocking)
-    // Only if feature is enabled and payment was successful
+    // Handle Faster Checkout token per spec v1.51
     if (process.env.BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && isSuccessful) {
-      // Extract token from responseData
-      // Field name from BENEFIT docs: check for common field names
-      const token = responseData.token || 
-                    responseData.paymentToken || 
-                    responseData.cardToken || 
-                    responseData.savedToken ||
-                    responseData.tokenId;
-      
-      if (token) {
-        // Store token asynchronously (don't await - let it run in background)
-        storePaymentToken({
-          userId: authResult.user.id,
-          token,
-          paymentId: responseData.paymentId,
-          orderId: order.id,
-          responseData, // For card details if available
-        }).catch(error => {
-          // Log but don't fail response - token storage is non-critical
-          console.error('[BENEFIT Process] Token storage failed (non-blocking):', error);
-        });
-      } else if (process.env.NODE_ENV === 'development') {
-        // Log when token is expected but not found (for debugging)
-        console.log('[BENEFIT Process] No token found in response data. Available fields:', Object.keys(responseData));
+      // Check for token deletion (udf9 = "DELETED")
+      if (responseData.udf9 === 'DELETED') {
+        console.log('[BENEFIT Process] Token deletion detected (udf9=DELETED)');
+        
+        // Mark all tokens for this user as deleted
+        // Note: We don't have the specific token ID here, so we'll mark based on payment context
+        if (tokenId) {
+          // If we have tokenId, mark that specific token as deleted
+          const tokenHash = crypto.createHash('sha256').update(tokenId).digest('hex');
+          await getSupabase()
+            .from('benefit_payment_tokens')
+            .update({ status: 'deleted', updated_at: new Date().toISOString() })
+            .eq('token_hash', tokenHash)
+            .eq('user_id', authResult.user.id)
+            .catch(error => {
+              console.error('[BENEFIT Process] Failed to mark token as deleted:', error);
+            });
+        }
+      } else {
+        // Extract token from udf7 (per spec v1.51) or fallback to legacy fields
+        const token = responseData.udf7 || 
+                      responseData.token || 
+                      responseData.paymentToken || 
+                      responseData.cardToken || 
+                      responseData.savedToken ||
+                      responseData.tokenId;
+        
+        if (token) {
+          console.log('[BENEFIT Process] Token received (udf7 or legacy field):', token.substring(0, 10) + '...');
+          
+          // Store token asynchronously (don't await - let it run in background)
+          storePaymentToken({
+            userId: authResult.user.id,
+            token,
+            paymentId: responseData.paymentId,
+            orderId: order.id,
+            responseData, // For card details if available
+          }).catch(error => {
+            // Log but don't fail response - token storage is non-critical
+            console.error('[BENEFIT Process] Token storage failed (non-blocking):', error);
+          });
+        } else if (process.env.NODE_ENV === 'development') {
+          // Log when token is expected but not found (for debugging)
+          console.log('[BENEFIT Process] No token found in response data. Available fields:', Object.keys(responseData));
+          console.log('[BENEFIT Process] udf7:', responseData.udf7, 'udf8:', responseData.udf8, 'udf9:', responseData.udf9);
+        }
       }
     }
+    
+    // Log Faster Checkout fields for observability
+    console.log('[BENEFIT Process] Faster Checkout fields:', {
+      udf7: responseData.udf7 ? responseData.udf7.substring(0, 10) + '...' : 'not present',
+      udf8: responseData.udf8 || 'not present',
+      udf9: responseData.udf9 || 'not present',
+    });
 
     return cors.addHeaders(
       NextResponse.json({
