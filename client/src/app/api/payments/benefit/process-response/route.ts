@@ -705,7 +705,15 @@ export async function POST(request: NextRequest) {
     console.log('[BENEFIT Process] Payment successful, order created:', order.id);
 
     // Handle Faster Checkout token per spec v1.51
-    if (process.env.BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && isSuccessful) {
+    const fasterCheckoutEnabled = process.env.BENEFIT_FASTER_CHECKOUT_ENABLED === 'true';
+    console.log('[BENEFIT Process] Faster Checkout check:', {
+      enabled: fasterCheckoutEnabled,
+      isSuccessful,
+      hasUserId: !!authResult.user.id,
+      willProcess: fasterCheckoutEnabled && isSuccessful,
+    });
+    
+    if (fasterCheckoutEnabled && isSuccessful) {
       // Check for token deletion (udf9 = "DELETED")
       if (responseData.udf9 === 'DELETED') {
         console.log('[BENEFIT Process] Token deletion detected (udf9=DELETED)');
@@ -740,6 +748,7 @@ export async function POST(request: NextRequest) {
         
         if (token) {
           console.log('[BENEFIT Process] Token received (udf7 or legacy field):', token.substring(0, 10) + '...');
+          console.log('[BENEFIT Process] Attempting to store token for user:', authResult.user.id.substring(0, 8) + '...');
           
           // Store token asynchronously (don't await - let it run in background)
           storePaymentToken({
@@ -748,9 +757,16 @@ export async function POST(request: NextRequest) {
             paymentId: responseData.paymentId,
             orderId: order.id,
             responseData, // For card details if available
+          }).then(result => {
+            if (result.success) {
+              console.log('[BENEFIT Process] Token storage completed successfully');
+            } else {
+              console.error('[BENEFIT Process] Token storage failed:', result.error);
+            }
           }).catch(error => {
             // Log but don't fail response - token storage is non-critical
             console.error('[BENEFIT Process] Token storage failed (non-blocking):', error);
+            console.error('[BENEFIT Process] Error stack:', error.stack);
           });
         } else if (process.env.NODE_ENV === 'development') {
           // Log when token is expected but not found (for debugging)

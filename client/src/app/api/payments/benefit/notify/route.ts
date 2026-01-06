@@ -356,7 +356,15 @@ export async function POST(request: NextRequest) {
     }, { status: 200 });
 
     // Handle Faster Checkout token per spec v1.51
-    if (process.env.BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && isSuccessful && session.user_id) {
+    const fasterCheckoutEnabled = process.env.BENEFIT_FASTER_CHECKOUT_ENABLED === 'true';
+    console.log('[BENEFIT Notify] Faster Checkout check:', {
+      enabled: fasterCheckoutEnabled,
+      isSuccessful,
+      hasUserId: !!session.user_id,
+      willProcess: fasterCheckoutEnabled && isSuccessful && session.user_id,
+    });
+    
+    if (fasterCheckoutEnabled && isSuccessful && session.user_id) {
       // Check for token deletion (udf9 = "DELETED")
       if (responseData.udf9 === 'DELETED') {
         console.log('[BENEFIT Notify] Token deletion detected (udf9=DELETED)');
@@ -391,6 +399,7 @@ export async function POST(request: NextRequest) {
         
         if (token) {
           console.log('[BENEFIT Notify] Token received (udf7 or legacy field):', token.substring(0, 10) + '...');
+          console.log('[BENEFIT Notify] Attempting to store token for user:', session.user_id.substring(0, 8) + '...');
           
           // Store token asynchronously (don't await - let it run in background)
           // This ensures notification handler responds quickly
@@ -400,9 +409,16 @@ export async function POST(request: NextRequest) {
             paymentId: responseData.paymentId,
             orderId: order.id,
             responseData, // For card details if available
+          }).then(result => {
+            if (result.success) {
+              console.log('[BENEFIT Notify] Token storage completed successfully');
+            } else {
+              console.error('[BENEFIT Notify] Token storage failed:', result.error);
+            }
           }).catch(error => {
             // Log but don't fail notification - token storage is non-critical
             console.error('[BENEFIT Notify] Token storage failed (non-blocking):', error);
+            console.error('[BENEFIT Notify] Error stack:', error.stack);
           });
         } else if (process.env.NODE_ENV === 'development') {
           // Log when token is expected but not found (for debugging)
