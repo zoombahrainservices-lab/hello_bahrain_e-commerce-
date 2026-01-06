@@ -382,6 +382,7 @@ export async function POST(request: NextRequest) {
       payment_raw_response: responseData,
       benefit_track_id: session.benefit_track_id,
       benefit_payment_id: session.benefit_payment_id,
+      checkout_session_id: session.id, // IDEMPOTENCY ANCHOR - links order to session
     };
 
     // Store BENEFIT-specific fields
