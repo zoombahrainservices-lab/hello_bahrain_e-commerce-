@@ -434,6 +434,26 @@ export async function POST(request: NextRequest) {
       udf8: responseData.udf8 || 'not present',
       udf9: responseData.udf9 || 'not present',
     });
+    
+    // Log full responseData structure for debugging (in production too, but redact sensitive data)
+    console.log('[BENEFIT Notify] Full responseData keys:', Object.keys(responseData));
+    console.log('[BENEFIT Notify] ResponseData sample:', {
+      result: responseData.result,
+      paymentId: responseData.paymentId,
+      trackId: responseData.trackId,
+      transId: responseData.transId,
+      udf1: responseData.udf1,
+      udf2: responseData.udf2,
+      udf3: responseData.udf3,
+      udf4: responseData.udf4,
+      udf5: responseData.udf5,
+      udf7: responseData.udf7 ? responseData.udf7.substring(0, 20) + '...' : null,
+      udf8: responseData.udf8,
+      udf9: responseData.udf9,
+      token: responseData.token ? 'present' : 'not present',
+      paymentToken: responseData.paymentToken ? 'present' : 'not present',
+      cardToken: responseData.cardToken ? 'present' : 'not present',
+    });
 
     return response;
   } catch (error: any) {
