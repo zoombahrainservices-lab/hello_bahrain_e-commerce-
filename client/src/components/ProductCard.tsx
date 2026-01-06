@@ -223,7 +223,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </p>
 
           {/* Product Title */}
-          <h3 className="text-[15px] font-semibold text-gray-900 mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-primary-600 transition">
+          <h3 className="text-[15px] font-semibold text-gray-900 mb-2 truncate group-hover:text-primary-600 transition" title={product.name}>
             {product.name}
           </h3>
 
