@@ -434,14 +434,19 @@ export async function POST(request: NextRequest) {
         if (tokenId) {
           // If we have tokenId, mark that specific token as deleted
           const tokenHash = crypto.createHash('sha256').update(tokenId).digest('hex');
-          await getSupabase()
-            .from('benefit_payment_tokens')
-            .update({ status: 'deleted', updated_at: new Date().toISOString() })
-            .eq('token_hash', tokenHash)
-            .eq('user_id', authResult.user.id)
-            .catch(error => {
+          try {
+            const { error } = await getSupabase()
+              .from('benefit_payment_tokens')
+              .update({ status: 'deleted', updated_at: new Date().toISOString() })
+              .eq('token_hash', tokenHash)
+              .eq('user_id', authResult.user.id);
+            
+            if (error) {
               console.error('[BENEFIT Process] Failed to mark token as deleted:', error);
-            });
+            }
+          } catch (error) {
+            console.error('[BENEFIT Process] Failed to mark token as deleted:', error);
+          }
         }
       } else {
         // Extract token from udf7 (per spec v1.51) or fallback to legacy fields
