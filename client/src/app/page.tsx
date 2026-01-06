@@ -550,13 +550,13 @@ function MerchPageContent() {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Category Navigation */}
+          {/* Category Navigation */}
         <div className="mb-8">
           <div className="flex flex-wrap gap-2 mb-6">
             {/* Always show "All" first */}
             <button
               onClick={() => updateParams('category', '')}
-              className={`px-4 py-2 rounded-lg transition ${
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
                 category === 'All' || !category
                   ? 'bg-primary-600 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -569,7 +569,7 @@ function MerchPageContent() {
               <button
                 key={`${cat.id}-${cat.name}-${cat.slug}`}
                 onClick={() => updateParams('category', cat.name)}
-                className={`px-4 py-2 rounded-lg transition ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
                   category === cat.name
                     ? 'bg-primary-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -595,7 +595,7 @@ function MerchPageContent() {
                       handleSearch();
                     }
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 {searchInput && (
                   <button
@@ -622,7 +622,7 @@ function MerchPageContent() {
             <select
               value={sort}
               onChange={(e) => updateParams('sort', e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -676,7 +676,7 @@ function MerchPageContent() {
           </div>
         ) : products.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
               {products.map((product) => (
                 <ProductCard key={product._id} product={product} />
               ))}
@@ -688,17 +688,17 @@ function MerchPageContent() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition"
                 >
                   Previous
                 </button>
-                <span className="px-4 py-2">
+                <span className="px-4 py-2 text-sm">
                   Page {page} of {totalPages}
                 </span>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition"
                 >
                   Next
                 </button>

@@ -2,9 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* BRHendrix Font Face Declarations */
+@font-face {
+  font-family: 'BRHendrix';
+  src: url('/fonts/BRHendrix-Semibold.woff2') format('woff2'),
+       url('/fonts/BRHendrix-Semibold.woff') format('woff'),
+       url('/fonts/BRHendrix-Semibold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BRHendrix';
+  src: url('/fonts/BRHendrix-Regular.woff2') format('woff2'),
+       url('/fonts/BRHendrix-Regular.woff') format('woff'),
+       url('/fonts/BRHendrix-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BRHendrix';
+  src: url('/fonts/BRHendrix-Bold.woff2') format('woff2'),
+       url('/fonts/BRHendrix-Bold.woff') format('woff'),
+       url('/fonts/BRHendrix-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900;
+    font-family: 'BRHendrix', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  
+  /* Apply BRHendrix to all text elements */
+  p, span, div, a, button, input, textarea, select, label {
+    font-family: 'BRHendrix', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  
+  /* Headings use semibold (600) */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'BRHendrix', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
   }
 }
 
@@ -17,8 +64,44 @@
   }
 }
 
-
-
+@layer components {
+  /* Primary Button Styles */
+  .btn-primary {
+    @apply bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-700 transition;
+  }
+  
+  .btn-primary-lg {
+    @apply bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 transition;
+  }
+  
+  /* Secondary Button Styles */
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition;
+  }
+  
+  /* Icon Button Styles */
+  .btn-icon {
+    @apply rounded-full shadow-md hover:scale-110 transition-all duration-300;
+  }
+  
+  /* Input Styles */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  textarea,
+  select {
+    @apply border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    font-family: 'BRHendrix', system-ui, -apple-system, sans-serif;
+  }
+  
+  /* Checkbox and Radio Styles */
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply accent-primary-600;
+  }
+}
 
 .animate-hero-fade-in {
   animation: hero-fade-in 700ms ease-out forwards;
@@ -38,46 +121,3 @@
 .animate-card-fade-up {
   animation: card-fade-up 500ms ease-out forwards;
 }
-
-
-@layer utilities {
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-}
-
-
-
-
-.animate-hero-fade-in {
-  animation: hero-fade-in 700ms ease-out forwards;
-}
-
-@keyframes card-fade-up {
-  0% {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-card-fade-up {
-  animation: card-fade-up 500ms ease-out forwards;
-}
-
-
-@layer utilities {
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-}
-

@@ -22,6 +22,10 @@ export interface Product {
   isNew: boolean;
   createdAt: string;
   updatedAt: string;
+  // Promotional label fields
+  promotionalLabel?: string;
+  promotionalLabelColor?: string;
+  secondaryImage?: string;
 }
 
 export interface Banner {
