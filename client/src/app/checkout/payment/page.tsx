@@ -379,6 +379,7 @@ export default function PaymentPage() {
           setWalletProcessing(false);
           
           let errorMsg = error?.errorDescription || error?.message || 'BenefitPay Wallet payment failed';
+          let canRetry = true; // Default to allowing retry
           
           // Check for specific error codes and provide helpful messages
           if (errorMsg.includes('Merchant does not support payment') || 
@@ -389,6 +390,7 @@ export default function PaymentPage() {
                       'This is not a localhost issue - the account needs to be activated in BenefitPay\'s system.';
             console.error('[BenefitPay] FOO-003 Error: Merchant account not enabled for wallet payments');
             console.error('[BenefitPay] Action Required: Contact BenefitPay support to activate wallet payments');
+            canRetry = false; // Don't allow retry if account not enabled
           } else if (errorMsg.includes('Reference number is already used') ||
                      errorMsg.includes('FOO-002') ||
                      error?.errorCode === 'FOO-002') {
@@ -408,7 +410,7 @@ export default function PaymentPage() {
             message: errorMsg,
             sessionId: maskedSessionId,
             referenceAttempt,
-            canRetry: !errorMsg.includes('not enabled'), // Don't allow retry if account not enabled
+            canRetry: canRetry, // Use the canRetry variable we set above
           });
         },
         // Close callback
