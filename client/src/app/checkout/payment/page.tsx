@@ -746,10 +746,12 @@ export default function PaymentPage() {
           });
         } else {
           // Use regular BENEFIT Payment Gateway
+          // Include saveCard flag to request tokenization if user wants to save card
           paymentResponse = await api.post('/api/payments/benefit/init', {
             sessionId,
             amount: totalAmount,
             currency: 'BHD',
+            saveCard: saveCard, // Pass saveCard flag to request tokenization
           });
         }
 

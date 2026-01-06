@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { sessionId, amount, currency = 'BHD' } = body;
+    const { sessionId, amount, currency = 'BHD', saveCard = false } = body;
 
     // Validation
     if (!sessionId) {
@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
     const trackId = numericTrackId;
 
     // Build plain trandata
+    // If saveCard is true, include udf8="FC" to request tokenization (per spec v1.51)
     const trandataParams = {
       amt: amountFormatted,
       trackId,
@@ -113,6 +114,7 @@ export async function POST(request: NextRequest) {
       tranportalId,
       tranportalPassword,
       udf1: "", // Keep empty per BENEFIT recommendation
+      ...(saveCard && { udf8: "FC" }), // Request tokenization when saveCard is true
     };
 
     // Validate parameters
