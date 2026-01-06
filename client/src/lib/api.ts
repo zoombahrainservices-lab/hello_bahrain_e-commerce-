@@ -26,21 +26,30 @@ api.interceptors.request.use(
       const cookieMatch = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
       const cookieToken = cookieMatch ? cookieMatch[1] : null;
       
-      console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`, {
-        baseURL: config.baseURL,
-        origin: window.location.origin,
-        hasLocalStorageToken: !!localStorageToken,
-        hasCookieToken: !!cookieToken,
-        tokensMatch: localStorageToken === cookieToken,
-        tokenLength: localStorageToken?.length || 0,
-      });
+      // Only log in development mode to avoid console spam
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+          baseURL: config.baseURL,
+          origin: window.location.origin,
+          hasLocalStorageToken: !!localStorageToken,
+          hasCookieToken: !!cookieToken,
+          tokensMatch: localStorageToken === cookieToken,
+          tokenLength: localStorageToken?.length || 0,
+        });
+      }
       
       // Add token from localStorage if available
       if (localStorageToken && config.headers) {
         config.headers.Authorization = `Bearer ${localStorageToken}`;
-        console.log('✅ Added Authorization header to request');
+        // Only log in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Added Authorization header to request');
+        }
       } else {
-        console.log('⚠️ No token found - request will be unauthenticated');
+        // Only log in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⚠️ No token found - request will be unauthenticated');
+        }
       }
     }
     return config;
@@ -53,7 +62,8 @@ api.interceptors.request.use(
 // Add response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
-    if (typeof window !== 'undefined') {
+    // Only log in development mode to avoid console spam
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.status);
     }
     return response;
