@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 /* BRHendrix Font Face Declarations */
+/* Note: Font files should be placed in public/fonts/ directory */
+/* If fonts are not available, system fonts will be used as fallback */
 @font-face {
   font-family: 'BRHendrix';
   src: url('/fonts/BRHendrix-Semibold.woff2') format('woff2'),
@@ -31,6 +33,15 @@
   font-weight: 700;
   font-style: normal;
   font-display: swap;
+}
+
+/* Fallback: If fonts fail to load, use system fonts gracefully */
+@supports not (font-display: swap) {
+  @font-face {
+    font-family: 'BRHendrix';
+    src: local('Arial'), local('Helvetica');
+    font-weight: 400 700;
+  }
 }
 
 @layer base {
