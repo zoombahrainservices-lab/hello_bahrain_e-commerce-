@@ -305,72 +305,6 @@ function MerchPageContent() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchBanners();
-    fetchCategories();
-  }, [fetchBanners, fetchCategories]);
-
-  // Refetch data when page becomes visible (user returns from checkout/admin panel)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        // Page became visible, refetch all data to get latest updates
-        fetchBanners();
-        fetchCategories();
-        // Only refetch products if not currently loading
-        if (!loading) {
-          fetchProducts();
-        }
-      }
-    };
-
-    const handleFocus = () => {
-      // Window gained focus, refetch all data
-      fetchBanners();
-      fetchCategories();
-      // Only refetch products if not currently loading
-      if (!loading) {
-        fetchProducts();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [fetchBanners, fetchCategories, fetchProducts, loading]);
-
-  // Prevent scroll to top when URL params change (for category/sort filtering)
-  useEffect(() => {
-    // Restore scroll position when searchParams change (but only if we have a saved position)
-    if (typeof window !== 'undefined' && scrollPositionRef.current > 0) {
-      const savedScroll = scrollPositionRef.current;
-      // Use multiple attempts to ensure scroll is restored
-      const restoreScroll = () => {
-        window.scrollTo({
-          top: savedScroll,
-          behavior: 'instant' as ScrollBehavior,
-        });
-      };
-      
-      // Try immediately
-      restoreScroll();
-      
-      // Try after DOM updates
-      requestAnimationFrame(() => {
-        requestAnimationFrame(restoreScroll);
-      });
-      
-      // Try after short delays
-      setTimeout(restoreScroll, 0);
-      setTimeout(restoreScroll, 10);
-      setTimeout(restoreScroll, 50);
-    }
-  }, [searchParams]);
-
   const fetchProducts = useCallback(async (retryCount = 0) => {
     try {
       setLoading(true);
@@ -449,6 +383,72 @@ function MerchPageContent() {
       setLoading(false);
     }
   }, [category, sort, searchTerm, page, isInitialLoad]);
+
+  useEffect(() => {
+    fetchBanners();
+    fetchCategories();
+  }, [fetchBanners, fetchCategories]);
+
+  // Refetch data when page becomes visible (user returns from checkout/admin panel)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Page became visible, refetch all data to get latest updates
+        fetchBanners();
+        fetchCategories();
+        // Only refetch products if not currently loading
+        if (!loading) {
+          fetchProducts();
+        }
+      }
+    };
+
+    const handleFocus = () => {
+      // Window gained focus, refetch all data
+      fetchBanners();
+      fetchCategories();
+      // Only refetch products if not currently loading
+      if (!loading) {
+        fetchProducts();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchBanners, fetchCategories, fetchProducts, loading]);
+
+  // Prevent scroll to top when URL params change (for category/sort filtering)
+  useEffect(() => {
+    // Restore scroll position when searchParams change (but only if we have a saved position)
+    if (typeof window !== 'undefined' && scrollPositionRef.current > 0) {
+      const savedScroll = scrollPositionRef.current;
+      // Use multiple attempts to ensure scroll is restored
+      const restoreScroll = () => {
+        window.scrollTo({
+          top: savedScroll,
+          behavior: 'instant' as ScrollBehavior,
+        });
+      };
+      
+      // Try immediately
+      restoreScroll();
+      
+      // Try after DOM updates
+      requestAnimationFrame(() => {
+        requestAnimationFrame(restoreScroll);
+      });
+      
+      // Try after short delays
+      setTimeout(restoreScroll, 0);
+      setTimeout(restoreScroll, 10);
+      setTimeout(restoreScroll, 50);
+    }
+  }, [searchParams]);
 
   const updateParams = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams?.toString());
@@ -572,7 +572,7 @@ function MerchPageContent() {
         <BannerCarousel key={`banners-${banners.map(b => b._id).join('-')}`} banners={banners} />
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           {/* Category Navigation */}
         <div className="mb-8">
           <div className="flex flex-wrap gap-2 mb-6">

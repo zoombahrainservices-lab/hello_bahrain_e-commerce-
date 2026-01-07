@@ -124,7 +124,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div
-      className="group bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col relative"
+      className="group border border-transparent hover:border-gray-300 rounded-lg overflow-hidden transition-all duration-300 flex flex-col relative"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
