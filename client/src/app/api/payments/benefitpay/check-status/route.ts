@@ -154,11 +154,14 @@ export async function POST(request: NextRequest) {
     };
 
     // Add X-CLIENT-ID only if provided (Phase 4.1)
+    // NOTE: Some merchant accounts may require X-CLIENT-ID. If you receive authentication errors,
+    // contact BenefitPay support to verify if X-CLIENT-ID is required for merchant ID 3186.
     if (credentials.clientId && credentials.clientId.trim() !== '') {
       headers['X-CLIENT-ID'] = credentials.clientId;
       console.log('[BenefitPay Check Status] ✓ X-CLIENT-ID header added');
     } else {
       console.log('[BenefitPay Check Status] ⚠ X-CLIENT-ID not provided (optional, skipping)');
+      console.log('[BenefitPay Check Status] ⚠ If authentication fails, verify if X-CLIENT-ID is required for merchant 3186');
     }
 
     const response = await fetch(credentials.checkStatusUrl, {

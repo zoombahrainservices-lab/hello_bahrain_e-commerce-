@@ -182,3 +182,4 @@ SELECT EXISTS (
 - **Action needed:** Add same key to Vercel production environment variables
 - **Most likely issue:** Environment variables not set in Vercel production
 
+

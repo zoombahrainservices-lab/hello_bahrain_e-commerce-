@@ -310,20 +310,28 @@ function MerchPageContent() {
     fetchCategories();
   }, [fetchBanners, fetchCategories]);
 
-  // Refetch banners and categories when page becomes visible (user returns from admin panel)
+  // Refetch data when page becomes visible (user returns from checkout/admin panel)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        // Page became visible, refetch banners and categories to get latest updates
+        // Page became visible, refetch all data to get latest updates
         fetchBanners();
         fetchCategories();
+        // Only refetch products if not currently loading
+        if (!loading) {
+          fetchProducts();
+        }
       }
     };
 
     const handleFocus = () => {
-      // Window gained focus, refetch banners and categories
+      // Window gained focus, refetch all data
       fetchBanners();
       fetchCategories();
+      // Only refetch products if not currently loading
+      if (!loading) {
+        fetchProducts();
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -333,7 +341,7 @@ function MerchPageContent() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [fetchBanners, fetchCategories]);
+  }, [fetchBanners, fetchCategories, fetchProducts, loading]);
 
   // Prevent scroll to top when URL params change (for category/sort filtering)
   useEffect(() => {
@@ -363,7 +371,7 @@ function MerchPageContent() {
     }
   }, [searchParams]);
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (retryCount = 0) => {
     try {
       setLoading(true);
       setError(null);
@@ -405,6 +413,21 @@ function MerchPageContent() {
       setTotalPages(response.data.totalPages || 1);
     } catch (error: any) {
       console.error('Error fetching products:', error);
+      
+      // Retry logic: retry up to 2 times for network errors
+      const isNetworkError = error.code === 'ERR_NETWORK' || 
+                           error.message?.includes('CORS') || 
+                           error.response?.status === 0 ||
+                           !error.response;
+      
+      if (isNetworkError && retryCount < 2) {
+        console.log(`Retrying fetchProducts (attempt ${retryCount + 1}/2)...`);
+        // Retry after a short delay (exponential backoff)
+        setTimeout(() => {
+          fetchProducts(retryCount + 1);
+        }, 1000 * (retryCount + 1));
+        return;
+      }
       
       // On error, only clear products if it's not the initial load
       // This way hardcoded products stay visible during cold start

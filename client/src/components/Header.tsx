@@ -90,6 +90,16 @@ export default function Header() {
               width={60}
               height={60}
               className="object-contain"
+              priority={true}
+              onError={(e) => {
+                // Fallback: hide image and show text only if image fails to load
+                console.warn('Logo image failed to load, using text fallback');
+                const target = e.target as HTMLImageElement;
+                if (target) {
+                  target.style.display = 'none';
+                }
+              }}
+              unoptimized={false}
             />
             <span className="text-3xl font-bold text-primary-600">
               HelloOneBahrain

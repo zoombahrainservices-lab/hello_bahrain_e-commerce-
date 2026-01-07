@@ -138,3 +138,4 @@ Once local testing works:
 2. Run database migration in production Supabase
 3. Redeploy application
 
+

@@ -26,6 +26,8 @@ export function validateWalletCredentials(): WalletCredentials {
   const merchantId = process.env.BENEFITPAY_WALLET_MERCHANT_ID;
   const appId = process.env.BENEFITPAY_WALLET_APP_ID;
   const secretKey = process.env.BENEFITPAY_WALLET_SECRET_KEY;
+  // Optional: Some merchant accounts may require X-CLIENT-ID for check-status API calls
+  // If you receive authentication errors, contact BenefitPay support to verify if required
   const clientId = process.env.BENEFITPAY_WALLET_CLIENT_ID; // Optional
   const checkStatusUrl = process.env.BENEFITPAY_WALLET_CHECK_STATUS_URL || 
     'https://api.test-benefitpay.bh/web/v1/merchant/transaction/check-status';

@@ -385,11 +385,23 @@ export default function PaymentPage() {
           if (errorMsg.includes('Merchant does not support payment') || 
               errorMsg.includes('FOO-003') ||
               error?.errorCode === 'FOO-003') {
-            errorMsg = 'Merchant account is not enabled for BenefitPay Wallet payments. ' +
-                      'Please contact BenefitPay support to activate wallet payments for your merchant account (Merchant ID: 3186, App ID: 1988588907). ' +
-                      'This is not a localhost issue - the account needs to be activated in BenefitPay\'s system.';
+            errorMsg = 'Merchant account is not enabled for BenefitPay Wallet payments.\n\n' +
+                      'ACTION REQUIRED: Contact BenefitPay support to activate wallet payments.\n\n' +
+                      'Merchant Details:\n' +
+                      '• Merchant ID: 3186\n' +
+                      '• App ID: 1988588907\n' +
+                      '• Merchant Name: Zoom Consultancy\n' +
+                      '• Environment: TEST\n\n' +
+                      'Please request: "Activate BenefitPay Wallet payments for merchant ID 3186 in TEST environment"\n\n' +
+                      'This is a provider-side configuration issue. The merchant account needs to be activated in BenefitPay\'s system before wallet payments will work.';
             console.error('[BenefitPay] FOO-003 Error: Merchant account not enabled for wallet payments');
             console.error('[BenefitPay] Action Required: Contact BenefitPay support to activate wallet payments');
+            console.error('[BenefitPay] Merchant Details:', {
+              merchantId: '3186',
+              appId: '1988588907',
+              merchantName: 'Zoom Consultancy',
+              environment: 'TEST',
+            });
             canRetry = false; // Don't allow retry if account not enabled
           } else if (errorMsg.includes('Reference number is already used') ||
                      errorMsg.includes('FOO-002') ||

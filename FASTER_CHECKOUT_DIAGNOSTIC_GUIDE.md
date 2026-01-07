@@ -233,3 +233,4 @@ ORDER BY created_at DESC;
 - **Supabase Support:** For database issues
 - **Vercel Support:** For environment variable issues
 
+
