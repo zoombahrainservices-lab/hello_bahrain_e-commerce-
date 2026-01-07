@@ -4,72 +4,14 @@ export default function Footer() {
   return (
     <footer className="bg-gray-900 text-white mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Brand */}
-          <div>
+          <div className="lg:col-span-1">
             <h3 className="text-xl font-bold mb-4">HelloOneBahrain</h3>
-            <p className="text-gray-400 text-sm">
-              Your premier destination for quality merchandise and apparel.
+            <p className="text-gray-400 text-sm mb-4">
+              Your digital home for life in Bahrain. Everything you need to know about the Kingdom.
             </p>
-          </div>
-
-          {/* Quick Links */}
-          <div>
-            <h4 className="font-semibold mb-4">Shop</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link href="/?category=T-Shirts" className="text-gray-400 hover:text-white transition">
-                  T-Shirts
-                </Link>
-              </li>
-              <li>
-                <Link href="/?category=Hoodies" className="text-gray-400 hover:text-white transition">
-                  Hoodies
-                </Link>
-              </li>
-              <li>
-                <Link href="/?category=Bags" className="text-gray-400 hover:text-white transition">
-                  Bags
-                </Link>
-              </li>
-              <li>
-                <Link href="/?category=Accessories" className="text-gray-400 hover:text-white transition">
-                  Accessories
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Customer Service */}
-          <div>
-            <h4 className="font-semibold mb-4">Customer Service</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link href="/profile/orders" className="text-gray-400 hover:text-white transition">
-                  Track Order
-                </Link>
-              </li>
-              <li>
-                <Link href="/shipping-policy" className="text-gray-400 hover:text-white transition">
-                  Shipping Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/refund-return-policy" className="text-gray-400 hover:text-white transition">
-                  Refund / Return Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-gray-400 hover:text-white transition">
-                  Contact Us
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Connect */}
-          <div>
-            <h4 className="font-semibold mb-4">Connect</h4>
+            {/* Social Media */}
             <div className="flex space-x-4">
               <a
                 href="https://www.facebook.com/ZoomConsultancyBH"
@@ -95,14 +37,123 @@ export default function Footer() {
               </a>
             </div>
           </div>
+
+          {/* About Bahrain */}
+          <div>
+            <h4 className="font-semibold mb-4">About Bahrain</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/#about" className="text-gray-400 hover:text-white transition">
+                  Overview
+                </Link>
+              </li>
+              <li>
+                <Link href="/#history" className="text-gray-400 hover:text-white transition">
+                  History
+                </Link>
+              </li>
+              <li>
+                <Link href="/#culture" className="text-gray-400 hover:text-white transition">
+                  Culture & Food
+                </Link>
+              </li>
+              <li>
+                <Link href="/about-bahrain" className="text-gray-400 hover:text-white transition">
+                  Complete Guide
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Explore */}
+          <div>
+            <h4 className="font-semibold mb-4">Explore</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/#visit" className="text-gray-400 hover:text-white transition">
+                  Places to Visit
+                </Link>
+              </li>
+              <li>
+                <Link href="/#things-to-do" className="text-gray-400 hover:text-white transition">
+                  Things to Do
+                </Link>
+              </li>
+              <li>
+                <Link href="/activities" className="text-gray-400 hover:text-white transition">
+                  Activities
+                </Link>
+              </li>
+              <li>
+                <Link href="/formula1" className="text-gray-400 hover:text-white transition">
+                  Formula 1
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Live & Work */}
+          <div>
+            <h4 className="font-semibold mb-4">Live & Work</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/#live-work" className="text-gray-400 hover:text-white transition">
+                  Living Guide
+                </Link>
+              </li>
+              <li>
+                <Link href="/travel-guide" className="text-gray-400 hover:text-white transition">
+                  Travel Guide
+                </Link>
+              </li>
+              <li>
+                <Link href="/jobs" className="text-gray-400 hover:text-white transition">
+                  Jobs
+                </Link>
+              </li>
+              <li>
+                <Link href="/business" className="text-gray-400 hover:text-white transition">
+                  Business
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Community & Shop */}
+          <div>
+            <h4 className="font-semibold mb-4">Community & Shop</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/news" className="text-gray-400 hover:text-white transition">
+                  News
+                </Link>
+              </li>
+              <li>
+                <Link href="/events" className="text-gray-400 hover:text-white transition">
+                  Events
+                </Link>
+              </li>
+              <li>
+                <Link href="/shop" className="text-gray-400 hover:text-white transition">
+                  Shop
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="text-gray-400 hover:text-white transition">
+                  Contact Us
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400 space-y-2">
-          <div className="flex flex-wrap justify-center gap-4 items-center">
+        {/* Bottom Section */}
+        <div className="border-t border-gray-800 mt-8 pt-8">
+          <div className="flex flex-wrap justify-center gap-4 items-center mb-4 text-sm text-gray-400">
             <Link href="/" className="hover:text-white transition">
               Home
             </Link>
-            <Link href="/?category=All" className="hover:text-white transition">
+            <Link href="/shop" className="hover:text-white transition">
               Shop
             </Link>
             <Link href="/privacy-policy" className="hover:text-white transition">
@@ -118,10 +169,11 @@ export default function Footer() {
               Shipping Policy
             </Link>
           </div>
-          <p>&copy; {new Date().getFullYear()} HelloOneBahrain. All rights reserved.</p>
+          <p className="text-center text-sm text-gray-400">
+            &copy; {new Date().getFullYear()} HelloOneBahrain. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
   );
 }
-

@@ -11,6 +11,7 @@ export default function Header() {
   const { getItemCount } = useCart();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showExploreBahrainDropdown, setShowExploreBahrainDropdown] = useState(false);
   const [showEcommerceDropdown, setShowEcommerceDropdown] = useState(false);
   const [showDirectoryDropdown, setShowDirectoryDropdown] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -23,7 +24,7 @@ export default function Header() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchInput.trim()) {
-      window.location.href = `/?search=${encodeURIComponent(searchInput.trim())}`;
+      window.location.href = `/shop?search=${encodeURIComponent(searchInput.trim())}`;
     }
   };
 
@@ -276,12 +277,12 @@ export default function Header() {
             </Link>
             <div className="relative">
               <button
-                onClick={() => setShowEcommerceDropdown(!showEcommerceDropdown)}
+                onClick={() => setShowExploreBahrainDropdown(!showExploreBahrainDropdown)}
                 className="text-sm font-semibold text-gray-900 hover:text-primary-600 transition flex items-center space-x-1 whitespace-nowrap"
               >
-                <span>E-commerce</span>
+                <span>Explore Bahrain</span>
                 <svg
-                  className={`w-4 h-4 transition-transform ${showEcommerceDropdown ? 'rotate-180' : ''}`}
+                  className={`w-4 h-4 transition-transform ${showExploreBahrainDropdown ? 'rotate-180' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -294,46 +295,56 @@ export default function Header() {
                   />
                 </svg>
               </button>
-              {showEcommerceDropdown && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+              {showExploreBahrainDropdown && (
+                <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50">
                   <Link
-                    href="/?category=All"
+                    href="/#about"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setShowEcommerceDropdown(false)}
+                    onClick={() => setShowExploreBahrainDropdown(false)}
                   >
-                    All Products
+                    About Bahrain
                   </Link>
                   <Link
-                    href="/?category=T-Shirts"
+                    href="/#visit"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setShowEcommerceDropdown(false)}
+                    onClick={() => setShowExploreBahrainDropdown(false)}
                   >
-                    T-Shirts
+                    Places to Visit
                   </Link>
                   <Link
-                    href="/?category=Hoodies"
+                    href="/#things-to-do"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setShowEcommerceDropdown(false)}
+                    onClick={() => setShowExploreBahrainDropdown(false)}
                   >
-                    Hoodies
+                    Things to Do
                   </Link>
                   <Link
-                    href="/?category=Bags"
+                    href="/#live-work"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setShowEcommerceDropdown(false)}
+                    onClick={() => setShowExploreBahrainDropdown(false)}
                   >
-                    Bags
+                    Living in Bahrain
                   </Link>
                   <Link
-                    href="/?category=Accessories"
+                    href="/#live-work"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setShowEcommerceDropdown(false)}
+                    onClick={() => setShowExploreBahrainDropdown(false)}
                   >
-                    Accessories
+                    Business & Work
+                  </Link>
+                  <Link
+                    href="/travel-guide"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowExploreBahrainDropdown(false)}
+                  >
+                    Travel Information
                   </Link>
                 </div>
               )}
             </div>
+            <Link href="/shop" className="text-sm font-semibold text-gray-900 hover:text-primary-600 transition whitespace-nowrap">
+              Shop
+            </Link>
             <div className="relative">
               <button
                 onClick={() => setShowDirectoryDropdown(!showDirectoryDropdown)}
@@ -410,11 +421,25 @@ export default function Header() {
                 Home
               </Link>
               <Link
-                href="/?category=All"
+                href="/#about"
                 className="text-gray-700 hover:text-primary-600 transition"
                 onClick={() => setShowMobileMenu(false)}
               >
-                E-commerce
+                About Bahrain
+              </Link>
+              <Link
+                href="/#visit"
+                className="text-gray-700 hover:text-primary-600 transition"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                Places to Visit
+              </Link>
+              <Link
+                href="/shop"
+                className="text-gray-700 hover:text-primary-600 transition"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                Shop
               </Link>
               <Link
                 href="/directory"
