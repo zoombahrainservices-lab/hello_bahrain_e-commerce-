@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 
 function OrderSuccessClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { clearCart } = useCart();
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -35,13 +36,23 @@ function OrderSuccessClient() {
     }
   }, [searchParams, clearCart]);
 
+  const handleContinueShopping = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.location.href = '/';
+  };
+
+  const handleViewOrders = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.location.href = '/profile/orders';
+  };
+
   if (!mounted) {
     return null;
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 relative z-10">
-      <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg p-8 text-center relative z-10">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg p-8 text-center">
         {/* Success Icon */}
         <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
           <svg
@@ -80,23 +91,15 @@ function OrderSuccessClient() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             type="button"
+            onClick={handleContinueShopping}
             className="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-700 transition cursor-pointer"
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.location.href = '/';
-              }
-            }}
           >
             Continue Shopping
           </button>
           <button
             type="button"
+            onClick={handleViewOrders}
             className="inline-block bg-gray-200 text-gray-800 px-8 py-3 rounded-lg font-semibold hover:bg-gray-300 transition cursor-pointer"
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.location.href = '/profile/orders';
-              }
-            }}
           >
             View My Orders
           </button>
@@ -108,24 +111,22 @@ function OrderSuccessClient() {
             Need help?{' '}
             <button
               type="button"
-              className="text-primary-600 hover:text-primary-700 underline cursor-pointer bg-transparent border-none p-0"
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  window.location.href = '/contact';
-                }
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/contact';
               }}
+              className="text-primary-600 hover:text-primary-700 underline cursor-pointer bg-transparent border-none p-0"
             >
               Contact us
             </button>
             {' '}or check your{' '}
             <button
               type="button"
-              className="text-primary-600 hover:text-primary-700 underline cursor-pointer bg-transparent border-none p-0"
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  window.location.href = '/profile/orders';
-                }
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/profile/orders';
               }}
+              className="text-primary-600 hover:text-primary-700 underline cursor-pointer bg-transparent border-none p-0"
             >
               order status
             </button>
@@ -150,4 +151,3 @@ export default function OrderSuccessPage() {
     </Suspense>
   );
 }
-

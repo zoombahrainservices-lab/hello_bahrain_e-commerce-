@@ -98,21 +98,9 @@ export async function storePaymentToken(params: StoreTokenParams): Promise<{ suc
       throw error;
     }
     
-    console.log('[BENEFIT Token Storage] Token stored successfully:', {
-      userId: userId.substring(0, 8) + '...',
-      cardAlias,
-      last4Digits,
-      isDefault,
-    });
     return { success: true };
   } catch (error: any) {
     console.error('[BENEFIT Token Storage] Error:', error);
-    console.error('[BENEFIT Token Storage] Error details:', {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-    });
     return { success: false, error: error.message };
   }
 }

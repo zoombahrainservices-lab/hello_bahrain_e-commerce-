@@ -83,7 +83,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         icon: 'fire',
       };
     }
-    if (product.stockQuantity < 10 && product.stockQuantity > 0) {
+    if (product.stockQuantity && product.stockQuantity < 10 && product.stockQuantity > 0) {
       return {
         text: 'LOW STOCK!',
         color: '#ef4444',

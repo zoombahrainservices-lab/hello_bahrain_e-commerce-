@@ -242,11 +242,9 @@ export async function POST(request: NextRequest) {
 
     // Add hash to parameters (secure_hash is NOT included in hash calculation itself)
     // Explicitly type to ensure TypeScript recognizes all properties
-    // Note: hashedString is also required by SDK (prevents undefined in URL)
     const signedParams: Record<string, string> = {
       ...sdkParams,
       secure_hash: secureHash,
-      hashedString: secureHash, // SDK expects hashedString parameter (same as secure_hash)
     };
 
     // Log final parameters being sent to SDK
@@ -257,7 +255,6 @@ export async function POST(request: NextRequest) {
     console.log('[BenefitPay Wallet Init] - transactionCurrency:', signedParams.transactionCurrency);
     console.log('[BenefitPay Wallet Init] - referenceNumber:', signedParams.referenceNumber);
     console.log('[BenefitPay Wallet Init] - secure_hash (first 50 chars):', signedParams.secure_hash.substring(0, 50) + '...');
-    console.log('[BenefitPay Wallet Init] - hashedString (first 50 chars):', signedParams.hashedString.substring(0, 50) + '...');
 
     // Store reference number and attempt counter in checkout session for later verification
     const { error: updateError } = await getSupabase()

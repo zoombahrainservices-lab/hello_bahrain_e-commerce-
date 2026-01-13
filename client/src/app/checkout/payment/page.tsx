@@ -235,12 +235,10 @@ export default function PaymentPage() {
         const tokens = response.data?.tokens || [];
         setSavedTokens(tokens);
         
-        // Auto-select default token if available
-        if (tokens.length > 0) {
-          const defaultToken = tokens.find((t: any) => t.is_default) || tokens[0];
-          setSelectedTokenId(defaultToken.id);
-          setUseSavedCard(true);
-        }
+        // Don't auto-select - user must explicitly check "Use saved card" checkbox
+        // This ensures saved cards are only used when user explicitly opts in
+        setSelectedTokenId(null);
+        setUseSavedCard(false);
       } catch (error) {
         console.error('Error fetching saved tokens:', error);
         // Don't show error to user - feature is optional
@@ -252,6 +250,7 @@ export default function PaymentPage() {
     if (user && paymentMethod === 'card') {
       fetchSavedTokens();
     } else {
+      // Reset saved card state when payment method changes or user logs out
       setSavedTokens([]);
       setUseSavedCard(false);
       setSelectedTokenId(null);
@@ -385,23 +384,11 @@ export default function PaymentPage() {
           if (errorMsg.includes('Merchant does not support payment') || 
               errorMsg.includes('FOO-003') ||
               error?.errorCode === 'FOO-003') {
-            errorMsg = 'Merchant account is not enabled for BenefitPay Wallet payments.\n\n' +
-                      'ACTION REQUIRED: Contact BenefitPay support to activate wallet payments.\n\n' +
-                      'Merchant Details:\n' +
-                      '• Merchant ID: 3186\n' +
-                      '• App ID: 1988588907\n' +
-                      '• Merchant Name: Zoom Consultancy\n' +
-                      '• Environment: TEST\n\n' +
-                      'Please request: "Activate BenefitPay Wallet payments for merchant ID 3186 in TEST environment"\n\n' +
-                      'This is a provider-side configuration issue. The merchant account needs to be activated in BenefitPay\'s system before wallet payments will work.';
+            errorMsg = 'Merchant account is not enabled for BenefitPay Wallet payments. ' +
+                      'Please contact BenefitPay support to activate wallet payments for your merchant account (Merchant ID: 3186, App ID: 1988588907). ' +
+                      'This is not a localhost issue - the account needs to be activated in BenefitPay\'s system.';
             console.error('[BenefitPay] FOO-003 Error: Merchant account not enabled for wallet payments');
             console.error('[BenefitPay] Action Required: Contact BenefitPay support to activate wallet payments');
-            console.error('[BenefitPay] Merchant Details:', {
-              merchantId: '3186',
-              appId: '1988588907',
-              merchantName: 'Zoom Consultancy',
-              environment: 'TEST',
-            });
             canRetry = false; // Don't allow retry if account not enabled
           } else if (errorMsg.includes('Reference number is already used') ||
                      errorMsg.includes('FOO-002') ||
@@ -748,8 +735,15 @@ export default function PaymentPage() {
         const featureEnabled = process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true';
         let paymentResponse;
         
-        if (featureEnabled && useSavedCard && selectedTokenId) {
+        // Defensive check: Only use saved cards if ALL conditions are met:
+        // 1. Feature is enabled
+        // 2. User explicitly checked "Use saved card" checkbox
+        // 3. A token ID is selected (not null/undefined)
+        const shouldUseSavedCard = featureEnabled && useSavedCard === true && selectedTokenId !== null && selectedTokenId !== undefined;
+        
+        if (shouldUseSavedCard) {
           // Use token-based payment (Faster Checkout)
+          console.log('[Payment] Using saved card with token:', selectedTokenId.substring(0, 10) + '...');
           paymentResponse = await api.post('/api/payments/benefit/init-with-token', {
             sessionId,
             amount: totalAmount,
@@ -757,13 +751,18 @@ export default function PaymentPage() {
             tokenId: selectedTokenId,
           });
         } else {
-          // Use regular BENEFIT Payment Gateway
-          // Include saveCard flag to request tokenization if user wants to save card
+          // Use regular BENEFIT Payment Gateway (no saved cards)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Payment] Using regular payment (no saved card)', {
+              featureEnabled,
+              useSavedCard,
+              hasTokenId: !!selectedTokenId,
+            });
+          }
           paymentResponse = await api.post('/api/payments/benefit/init', {
             sessionId,
             amount: totalAmount,
             currency: 'BHD',
-            saveCard: saveCard, // Pass saveCard flag to request tokenization
           });
         }
 
@@ -987,48 +986,55 @@ export default function PaymentPage() {
                     </div>
                   </label>
 
-                  {/* Faster Checkout UI - Only show if feature enabled and Card (BENEFIT PG) selected */}
-                  {paymentMethod === 'card' && process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && (
-                    <div className="ml-8 mt-2 space-y-3 border-l-2 border-primary-200 pl-4">
-                      {/* Use Saved Card Checkbox - Only show if saved tokens exist */}
-                      {savedTokens.length > 0 && (
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={useSavedCard}
-                            onChange={(e) => {
-                              setUseSavedCard(e.target.checked);
-                              if (!e.target.checked) {
-                                setSelectedTokenId(null);
-                              } else if (savedTokens.length > 0) {
-                                // Automatically use default card or first card
-                                const defaultToken = savedTokens.find(t => t.is_default) || savedTokens[0];
-                                setSelectedTokenId(defaultToken.id);
-                              }
-                            }}
-                            className="rounded"
-                          />
-                          <span className="text-sm font-medium">Use saved card</span>
-                        </label>
-                      )}
+                  {/* Use saved card checkbox - Only show if feature enabled and saved tokens exist */}
+                  {paymentMethod === 'card' && process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && savedTokens.length > 0 && (
+                    <div className="ml-8 mt-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useSavedCard}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setUseSavedCard(checked);
+                            
+                            if (!checked) {
+                              // Explicitly clear token selection when unchecked
+                              // This ensures saved cards are NOT used
+                              setSelectedTokenId(null);
+                            } else if (savedTokens.length > 0) {
+                              // Only set token when user explicitly checks the box
+                              const defaultToken = savedTokens.find(t => t.is_default) || savedTokens[0];
+                              setSelectedTokenId(defaultToken?.id || null);
+                            } else {
+                              // No tokens available, ensure state is cleared
+                              setSelectedTokenId(null);
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <span className="text-sm font-medium">Use saved card</span>
+                      </label>
+                    </div>
+                  )}
 
-                      {/* Save Card Checkbox - Only show if not using saved card */}
-                      {(!useSavedCard || savedTokens.length === 0) && (
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={saveCard}
-                            onChange={(e) => setSaveCard(e.target.checked)}
-                            className="rounded"
-                          />
-                          <span className="text-sm text-gray-600">Save card for faster checkout</span>
-                        </label>
-                      )}
+                  {/* Save Card Checkbox - Only show if not using saved card and feature enabled */}
+                  {paymentMethod === 'card' && process.env.NEXT_PUBLIC_BENEFIT_FASTER_CHECKOUT_ENABLED === 'true' && (!useSavedCard || savedTokens.length === 0) && (
+                    <div className="ml-8 mt-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveCard}
+                          onChange={(e) => setSaveCard(e.target.checked)}
+                          className="rounded"
+                        />
+                        <span className="text-sm text-gray-600">Save card for faster checkout</span>
+                      </label>
                     </div>
                   )}
                 </div>
 
-                <label className={`flex items-center border rounded-lg px-4 py-3 transition ${
+                {/* BenefitPay - Commented out */}
+                {/* <label className={`flex items-center border rounded-lg px-4 py-3 transition ${
                   walletConfigured === false 
                     ? 'opacity-50 cursor-not-allowed bg-gray-50' 
                     : 'cursor-pointer hover:border-primary-400'
@@ -1056,7 +1062,7 @@ export default function PaymentPage() {
                       </p>
                     )}
                   </div>
-                </label>
+                </label> */}
 
                 <label className="flex items-center border rounded-lg px-4 py-3 cursor-pointer hover:border-primary-400 transition">
                   <input

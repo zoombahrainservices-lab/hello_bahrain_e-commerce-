@@ -111,6 +111,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate resource key length (must be exactly 32 characters for AES-256)
+    if (resourceKey.length !== 32) {
+      console.error(`[BENEFIT Init With Token] Invalid resource key length: expected 32 characters, got ${resourceKey.length}`);
+      return cors.addHeaders(
+        NextResponse.json({ 
+          message: `BENEFIT_RESOURCE_KEY must be exactly 32 characters, but it's ${resourceKey.length} characters. Please check your environment variables.` 
+        }, { status: 500 }),
+        request
+      );
+    }
+
     // Build URLs
     const baseUrl = process.env.CLIENT_URL || 'https://helloonebahrain.com';
     const responseURL = `${baseUrl}/api/payments/benefit/ack?sessionId=${sessionId}`;
@@ -195,6 +206,10 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
         },
         body: JSON.stringify(benefitPayload),
         signal: controller.signal,

@@ -24,7 +24,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['BRHendrix', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
       },
     },
   },

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Banner } from '@/lib/types';
 
 interface BannerCarouselProps {
@@ -124,11 +125,11 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
             )} ${getVerticalClasses(banner)}`}
             style={{ animationDelay: `${index === currentIndex ? '0.2s' : '0s'}` }}
           >
-            <div className="max-w-4xl">
+            <div className="max-w-4xl flex flex-col items-center">
               <h1
                 className={`${getTitleSizeClass(
                   banner
-                )} mb-4 drop-shadow-lg`}
+                )} mb-4 drop-shadow-lg text-white font-bold`}
                 style={{
                   color: banner.titleColor || '#ffffff',
                   fontWeight: banner.titleBold === false ? 'normal' : '700',
@@ -141,9 +142,9 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
                 <p
                   className={`${getSubtitleSizeClass(
                     banner
-                  )} mb-6 drop-shadow-md`}
+                  )} mb-6 drop-shadow-md text-white`}
                   style={{
-                    color: banner.subtitleColor || '#e5e7eb',
+                    color: banner.subtitleColor || '#ffffff',
                     fontWeight: banner.subtitleBold ? '600' : '400',
                     fontStyle: banner.subtitleItalic ? 'italic' : 'normal',
                   }}
@@ -153,22 +154,23 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
               )}
               {banner.ctaLabel && (
                 <div 
-                  className="w-full flex"
+                  className="w-full flex flex-col items-center"
                   style={{
                     justifyContent: banner.buttonAlign === 'center' ? 'center' : 
                                   banner.buttonAlign === 'right' ? 'flex-end' : 'flex-start',
                   }}
                 >
-                  <a
+                  <Link
                     href={banner.ctaLink || '#'}
-                    className="inline-block px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition shadow-lg"
+                    className="inline-block px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition shadow-lg border-2"
                     style={{
-                      backgroundColor: banner.buttonBgColor || '#2563eb',
-                      color: banner.buttonTextColor || '#ffffff',
+                      backgroundColor: banner.buttonBgColor || '#ffffff',
+                      color: banner.buttonTextColor || '#1f2937',
+                      borderColor: '#dc2626',
                     }}
                   >
                     {banner.ctaLabel}
-                  </a>
+                  </Link>
                 </div>
               )}
             </div>
@@ -178,11 +180,12 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
 
       {banners.length > 1 && (
         <>
+          {/* Left Arrow - Red Circle */}
           <button
             onClick={() =>
               setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length)
             }
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-3 rounded-full shadow-lg transition z-10"
+            className="absolute left-4 top-1/2 -translate-y-1/2 bg-primary-600 hover:bg-primary-700 text-white p-3 rounded-full shadow-lg transition z-10"
             aria-label="Previous banner"
           >
             <svg
@@ -200,9 +203,10 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
             </svg>
           </button>
 
+          {/* Right Arrow - Grey Circle */}
           <button
             onClick={() => setCurrentIndex((prev) => (prev + 1) % banners.length)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-3 rounded-full shadow-lg transition z-10"
+            className="absolute right-4 top-1/2 -translate-y-1/2 bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-full shadow-lg transition z-10"
             aria-label="Next banner"
           >
             <svg
@@ -220,12 +224,13 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
             </svg>
           </button>
 
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {/* Dots - Positioned below button/content */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 z-10">
             {banners.map((_, index) => (
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
-                className={`w-3 h-3 rounded-full transition ${
+                className={`w-2 h-2 rounded-full transition ${
                   index === currentIndex ? 'bg-white' : 'bg-white/50'
                 }`}
                 aria-label={`Go to banner ${index + 1}`}

@@ -26,34 +26,21 @@ api.interceptors.request.use(
       const cookieMatch = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
       const cookieToken = cookieMatch ? cookieMatch[1] : null;
       
-      // Only log in development mode to avoid console spam
-      // Check both NODE_ENV and origin to ensure we're not in production
-      const isDevelopment = process.env.NODE_ENV === 'development' || 
-                           (typeof window !== 'undefined' && window.location.hostname === 'localhost');
-      
-      if (isDevelopment) {
-        console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`, {
-          baseURL: config.baseURL,
-          origin: window.location.origin,
-          hasLocalStorageToken: !!localStorageToken,
-          hasCookieToken: !!cookieToken,
-          tokensMatch: localStorageToken === cookieToken,
-          tokenLength: localStorageToken?.length || 0,
-        });
-      }
+      console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+        baseURL: config.baseURL,
+        origin: window.location.origin,
+        hasLocalStorageToken: !!localStorageToken,
+        hasCookieToken: !!cookieToken,
+        tokensMatch: localStorageToken === cookieToken,
+        tokenLength: localStorageToken?.length || 0,
+      });
       
       // Add token from localStorage if available
       if (localStorageToken && config.headers) {
         config.headers.Authorization = `Bearer ${localStorageToken}`;
-        // Only log in development
-        if (isDevelopment) {
-          console.log('✅ Added Authorization header to request');
-        }
+        console.log('✅ Added Authorization header to request');
       } else {
-        // Only log in development
-        if (isDevelopment) {
-          console.log('⚠️ No token found - request will be unauthenticated');
-        }
+        console.log('⚠️ No token found - request will be unauthenticated');
       }
     }
     return config;
@@ -66,8 +53,7 @@ api.interceptors.request.use(
 // Add response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
-    // Only log in development mode to avoid console spam
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    if (typeof window !== 'undefined') {
       console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.status);
     }
     return response;

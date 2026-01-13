@@ -18,18 +18,9 @@ export default function CartPage() {
   const router = useRouter();
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [checkingOrder, setCheckingOrder] = useState(true);
-  const [orderSuccessShown, setOrderSuccessShown] = useState(false); // Track if message was already shown
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
-    // If cart has items, always clear order success state and show cart normally
-    if (items.length > 0) {
-      setOrderSuccess(false);
-      localStorage.removeItem(RECENT_ORDER_KEY);
-      setCheckingOrder(false);
-      return;
-    }
     
     // Check URL parameter
     const params = new URLSearchParams(window.location.search);
@@ -44,14 +35,11 @@ export default function CartPage() {
         const { timestamp } = JSON.parse(recentOrderData);
         const timeSinceOrder = Date.now() - timestamp;
         
-        // Only show order success if:
-        // 1. Order was placed within last 30 seconds
-        // 2. Cart is empty
-        // 3. Order success message hasn't been shown yet
-        if (timeSinceOrder < 30000 && items.length === 0 && !orderSuccessShown) {
+        // CRITICAL FIX: Only redirect if cart is EMPTY
+        // If user has items, they're starting a new order - show cart normally
+        if (timeSinceOrder < 30000 && items.length === 0) {
           hasRecentOrder = true;
           const orderId = JSON.parse(recentOrderData).orderId;
-          
           // Redirect to success page only if cart is empty
           if (orderId) {
             router.replace(`/order/success?orderId=${orderId}`);
@@ -62,23 +50,17 @@ export default function CartPage() {
         } else if (timeSinceOrder >= 30000) {
           // Remove old order data after 30 seconds
           localStorage.removeItem(RECENT_ORDER_KEY);
-          hasRecentOrder = false;
+        }
+        // If cart has items, don't redirect - clear the marker
+        if (items.length > 0) {
+          localStorage.removeItem(RECENT_ORDER_KEY);
         }
       } catch (e) {
         localStorage.removeItem(RECENT_ORDER_KEY);
       }
     }
     
-    // Only set order success if it's from URL param or recent order (and not already shown)
-    if (hasOrderSuccess || (hasRecentOrder && !orderSuccessShown)) {
-      setOrderSuccess(true);
-      setOrderSuccessShown(true);
-      // Clear the localStorage flag immediately after reading it (only show once)
-      localStorage.removeItem(RECENT_ORDER_KEY);
-    } else {
-      setOrderSuccess(false);
-    }
-    
+    setOrderSuccess(hasOrderSuccess || hasRecentOrder);
     setCheckingOrder(false);
     
     // Clear the URL parameter after reading it
@@ -86,7 +68,7 @@ export default function CartPage() {
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
-  }, [router, items.length, orderSuccessShown]); // Add orderSuccessShown as dependency
+  }, [router, items.length]); // Add items.length as dependency
 
   if (authLoading || checkingOrder) {
     return (
@@ -113,17 +95,15 @@ export default function CartPage() {
     );
   }
 
-  // Always prioritize showing cart items if they exist
-  // Only show empty cart/order success message if cart is actually empty
   if (items.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-4">
-            {orderSuccess && orderSuccessShown ? 'Order Placed Successfully' : 'Your Cart is Empty'}
+            {orderSuccess ? 'Order Placed Successfully' : 'Your Cart is Empty'}
           </h1>
           <p className="text-gray-600 mb-8">
-            {orderSuccess && orderSuccessShown
+            {orderSuccess
               ? 'Thank you for your purchase! Your cart is now empty.'
               : 'Add some products to get started!'}
           </p>
@@ -133,7 +113,7 @@ export default function CartPage() {
           >
             Continue Shopping
           </Link>
-          {orderSuccess && orderSuccessShown && (
+          {orderSuccess && (
             <p className="mt-4 text-sm text-gray-600">
               You can view your order history anytime on the{' '}
               <Link href="/profile/orders" className="text-primary-600 hover:text-primary-700 underline">
