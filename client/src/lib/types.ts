@@ -20,6 +20,8 @@ export interface Product {
   rating: number;
   isFeatured: boolean;
   isNew: boolean;
+  promotionalLabel?: string;
+  promotionalLabelColor?: string;
   createdAt: string;
   updatedAt: string;
 }
