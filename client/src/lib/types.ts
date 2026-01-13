@@ -15,6 +15,7 @@ export interface Product {
   tags: string[];
   image: string;
   images: string[];
+  secondaryImage?: string;
   inStock: boolean;
   stockQuantity: number;
   rating: number;
