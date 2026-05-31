@@ -43,10 +43,10 @@ export default function Header() {
       {/* Top Section - Full Width */}
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 relative">
-          {/* Left Side - Search and Currency */}
-          <div className="flex items-center space-x-3 flex-1">
+          {/* Left Side - Search and Currency (hidden on ≤424px, moved into hamburger) */}
+          <div className="hidden min-[425px]:flex items-center space-x-3 flex-1">
             {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex items-center">
+            <form onSubmit={handleSearch} className="hidden min-[425px]:flex items-center">
               <div className="relative">
                 <input
                   type="text"
@@ -67,7 +67,7 @@ export default function Header() {
               </div>
             </form>
             {/* Currency Selector */}
-            <div className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+            <div className="hidden min-[425px]:flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
               <Image
                 src="https://flagcdn.com/w20/bh.png"
                 alt="Bahrain Flag"
@@ -79,8 +79,8 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Center - Logo */}
-          <Link href="/" className="absolute left-1/2 -translate-x-1/2 flex items-center space-x-2">
+          {/* Center - Logo (left-aligned on ≤424px, centered on larger screens) */}
+          <Link href="/" className="max-[424px]:static max-[424px]:translate-x-0 absolute left-1/2 -translate-x-1/2 flex items-center space-x-2">
             <Image
               src="/logo.jpg"
               alt="HelloOneBahrain Logo"
@@ -88,7 +88,7 @@ export default function Header() {
               height={40}
               className="object-contain"
             />
-            <span className="text-2xl font-bold text-primary-600">HelloOneBahrain</span>
+            <span className="hidden min-[425px]:inline text-2xl font-bold text-primary-600">HelloOneBahrain</span>
           </Link>
 
           {/* Right Side - Social Media, Cart, User */}
@@ -119,27 +119,29 @@ export default function Header() {
               </a>
             </div>
 
-            {/* Cart Icon */}
-            <Link href="/cart" className="relative text-red-600 hover:text-red-700 transition">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-              {getItemCount() > 0 && (
-                <span className="absolute -top-2 -right-2 bg-primary-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-                  {getItemCount()}
-                </span>
-              )}
-            </Link>
+            {/* Cart Icon - only shown when logged in */}
+            {user && (
+              <Link href="/cart" className="relative text-red-600 hover:text-red-700 transition">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+                {getItemCount() > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-primary-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+                    {getItemCount()}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* User Profile Icon */}
             {user ? (
@@ -411,6 +413,44 @@ export default function Header() {
       {showMobileMenu && (
         <div className="lg:hidden border-t py-4">
           <nav className="flex flex-col space-y-4 px-4">
+
+            {/* Search – shown in menu only on ≤424px where it is hidden in the top bar */}
+            <form
+              onSubmit={(e) => { handleSearch(e); setShowMobileMenu(false); }}
+              className="min-[425px]:hidden flex items-center"
+            >
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-8"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 hover:text-red-700 transition"
+                  aria-label="Search"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+
+            {/* Currency – shown in menu only on ≤424px */}
+            <div className="min-[425px]:hidden flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg w-fit cursor-pointer hover:bg-gray-50">
+              <Image
+                src="https://flagcdn.com/w20/bh.png"
+                alt="Bahrain Flag"
+                width={20}
+                height={15}
+                className="object-contain"
+              />
+              <span className="text-sm font-medium text-gray-700">BHD</span>
+            </div>
+
             <Link
               href="/"
               className="text-gray-700 hover:text-primary-600"
