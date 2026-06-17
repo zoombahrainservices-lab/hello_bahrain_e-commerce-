@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-middleware';
 import { getSupabase } from '@/lib/db';
-import { uploadBase64Image } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; // Never cache
@@ -62,17 +61,22 @@ export async function PUT(
     if (bannerData.ctaLabel !== undefined) updateData.cta_label = bannerData.ctaLabel;
     if (bannerData.active !== undefined) updateData.active = bannerData.active;
 
-    // Handle image upload - only if image is provided and it's a new base64 image
-    if (bannerData.image !== undefined && bannerData.image) {
-      try {
-        updateData.image = await uploadBase64Image(bannerData.image, 'banners');
-      } catch (imageError: any) {
-        console.error('Error uploading image:', imageError);
+    // Handle media library image — resolve URL from media_items
+    if (bannerData.mediaId !== undefined && bannerData.mediaId) {
+      const { data: mediaRow } = await getSupabase()
+        .from('media_items')
+        .select('public_url')
+        .eq('id', bannerData.mediaId)
+        .single();
+
+      if (!mediaRow) {
         return NextResponse.json(
-          { message: 'Error uploading image', error: imageError?.message },
-          { status: 500 }
+          { message: 'Media item not found' },
+          { status: 400 }
         );
       }
+      updateData.image = (mediaRow as any).public_url;
+      updateData.media_id = bannerData.mediaId;
     }
 
     // Always update alignment data in cta_link (even if ctaLink itself hasn't changed)
@@ -204,6 +208,17 @@ export async function PUT(
       }
     }
 
+    // Upsert usage tracking for the current media_id
+    const currentMediaId = data.media_id ?? bannerData.mediaId ?? null;
+    if (currentMediaId) {
+      await getSupabase()
+        .from('media_usages')
+        .upsert(
+          { media_id: currentMediaId, used_in_type: 'banner', used_in_id: id, used_as: 'hero' },
+          { onConflict: 'media_id,used_in_type,used_in_id' },
+        );
+    }
+
     const response = {
       _id: data.id,
       title: data.title,
@@ -211,6 +226,7 @@ export async function PUT(
       ctaLabel: data.cta_label,
       ctaLink: actualLink,
       image: data.image,
+      mediaId: data.media_id ?? null,
       active: data.active,
       textAlign: alignment.textAlign || 'left',
       textVertical: alignment.textVertical || 'middle',
@@ -266,6 +282,13 @@ export async function DELETE(
     }
 
     const { id } = params;
+
+    // Remove usage tracking rows before deleting the banner
+    await getSupabase()
+      .from('media_usages')
+      .delete()
+      .eq('used_in_type', 'banner')
+      .eq('used_in_id', id);
 
     const { error } = await getSupabase()
       .from('banners')

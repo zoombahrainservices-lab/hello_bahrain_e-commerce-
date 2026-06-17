@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Product } from '@/lib/types';
-import ImageUpload from '@/components/ImageUpload';
+import ProductMediaSection from '@/components/admin/products/ProductMediaSection';
 
 interface Category {
   id: string;
@@ -20,6 +20,12 @@ export default function EditProductPage() {
   const [error, setError] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [productId, setProductId] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAuthToken(localStorage.getItem('token'));
+  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -34,7 +40,6 @@ export default function EditProductPage() {
     isFeatured: false,
     isNew: false,
   });
-  const [images, setImages] = useState<string[]>([]);
 
   useEffect(() => {
     fetchCategories();
@@ -65,17 +70,7 @@ export default function EditProductPage() {
       const product = response.data;
 
       if (product) {
-        // Combine main image and additional images into one array
-        const allImages: string[] = [];
-        if (product.image) {
-          allImages.push(product.image);
-        }
-        if (Array.isArray(product.images)) {
-          allImages.push(...product.images);
-        } else if (product.images) {
-          allImages.push(...product.images.split(',').map((i: string) => i.trim()).filter(Boolean));
-        }
-
+        setProductId(product._id ?? product.id ?? null);
         setFormData({
           name: product.name || '',
           slug: product.slug || '',
@@ -89,7 +84,6 @@ export default function EditProductPage() {
           isFeatured: product.isFeatured !== undefined ? product.isFeatured : (product.is_featured !== undefined ? product.is_featured : false),
           isNew: product.isNew !== undefined ? product.isNew : (product.is_new !== undefined ? product.is_new : false),
         });
-        setImages(allImages);
       } else {
         setError('Product not found');
       }
@@ -125,21 +119,12 @@ export default function EditProductPage() {
     setSubmitting(true);
 
     try {
-      // Validate images
-      if (images.length === 0) {
-        setError('At least one image is required');
-        setSubmitting(false);
-        return;
-      }
-
       const productData = {
         ...formData,
         price: parseFloat(formData.price),
         stockQuantity: parseInt(formData.stockQuantity),
         rating: parseFloat(formData.rating),
         tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
-        image: images[0], // First image is the main image
-        images: images.slice(1), // Rest are additional images
       };
 
       await api.put(`/api/admin/products/${params?.id}`, productData);
@@ -260,20 +245,17 @@ export default function EditProductPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Product Images *
-            </label>
-            <ImageUpload
-              images={images}
-              onChange={setImages}
-              maxImages={10}
-              required
-            />
-            <p className="mt-2 text-sm text-gray-500">
-              The first image will be used as the main product image. You can drag to reorder.
-            </p>
-          </div>
+          {productId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Product Images
+              </label>
+              <ProductMediaSection
+                productId={productId}
+                authToken={authToken}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>

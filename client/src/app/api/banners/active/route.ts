@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/db';
+import { getBannerMediaUrl } from '@/lib/media/storefront-media-service';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; // Never cache
@@ -60,6 +61,17 @@ export async function GET(request: NextRequest) {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
+    // Resolve hero variant URLs for banners that have a media_id
+    const mediaIds = bannersWithOrder
+      .map((b: any) => b.media_id)
+      .filter(Boolean) as string[];
+    const heroUrlMap: Record<string, string | null> = {};
+    await Promise.all(
+      mediaIds.map(async (id: string) => {
+        heroUrlMap[id] = await getBannerMediaUrl(id);
+      }),
+    );
+
     // Transform banners to camelCase for frontend
     const transformedBanners = bannersWithOrder.map((banner: any) => {
       // Extract alignment data from cta_link if it exists
@@ -92,13 +104,18 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Use the resolved hero variant URL when available, fall back to stored image URL
+      const resolvedImage =
+        (banner.media_id && heroUrlMap[banner.media_id]) || banner.image;
+
       return {
         _id: banner.id,
         title: banner.title,
         subtitle: banner.subtitle,
         ctaLabel: banner.cta_label,
-        ctaLink: actualLink, // Return clean link without alignment data
-        image: banner.image,
+        ctaLink: actualLink,
+        image: resolvedImage,
+        mediaId: banner.media_id ?? null,
         active: banner.active,
         textAlign: alignmentData.textAlign || 'left',
         textVertical: alignmentData.textVertical || 'middle',

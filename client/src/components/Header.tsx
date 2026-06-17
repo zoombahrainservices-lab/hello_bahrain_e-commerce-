@@ -43,10 +43,10 @@ export default function Header() {
       {/* Top Section - Full Width */}
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 relative">
-          {/* Left Side - Search and Currency (hidden on ≤424px, moved into hamburger) */}
-          <div className="hidden min-[425px]:flex items-center space-x-3 flex-1">
+          {/* Left Side - Search and Currency (desktop only; tablet/mobile use hamburger menu) */}
+          <div className="hidden lg:flex items-center space-x-3 flex-1">
             {/* Search Bar */}
-            <form onSubmit={handleSearch} className="hidden min-[425px]:flex items-center">
+            <form onSubmit={handleSearch} className="hidden lg:flex items-center">
               <div className="relative">
                 <input
                   type="text"
@@ -67,7 +67,7 @@ export default function Header() {
               </div>
             </form>
             {/* Currency Selector */}
-            <div className="hidden min-[425px]:flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
               <Image
                 src="https://flagcdn.com/w20/bh.png"
                 alt="Bahrain Flag"
@@ -79,8 +79,8 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Center - Logo (left-aligned on ≤424px, centered on larger screens) */}
-          <Link href="/" className="max-[424px]:static max-[424px]:translate-x-0 absolute left-1/2 -translate-x-1/2 flex items-center space-x-2">
+          {/* Center - Logo (left on mobile/tablet, centered on desktop) */}
+          <Link href="/" className="static translate-x-0 lg:absolute lg:left-1/2 lg:-translate-x-1/2 flex items-center space-x-2">
             <Image
               src="/logo.jpg"
               alt="HelloOneBahrain Logo"
@@ -88,13 +88,15 @@ export default function Header() {
               height={40}
               className="object-contain"
             />
-            <span className="hidden min-[425px]:inline text-2xl font-bold text-primary-600">HelloOneBahrain</span>
+            <span className="hidden min-[425px]:inline text-lg sm:text-xl lg:text-2xl font-bold text-primary-600 whitespace-nowrap">
+              HelloOneBahrain
+            </span>
           </Link>
 
           {/* Right Side - Social Media, Cart, User */}
           <div className="flex items-center gap-4 flex-1 justify-end">
-            {/* Social Media Icons */}
-            <div className="hidden md:flex items-center gap-4">
+            {/* Social Media Icons - desktop only */}
+            <div className="hidden lg:flex items-center gap-4">
               <a
                 href="https://www.facebook.com/ZoomConsultancyBH"
                 target="_blank"
@@ -414,10 +416,10 @@ export default function Header() {
         <div className="lg:hidden border-t py-4">
           <nav className="flex flex-col space-y-4 px-4">
 
-            {/* Search – shown in menu only on ≤424px where it is hidden in the top bar */}
+            {/* Search – in menu on mobile/tablet (< lg) */}
             <form
               onSubmit={(e) => { handleSearch(e); setShowMobileMenu(false); }}
-              className="min-[425px]:hidden flex items-center"
+              className="lg:hidden flex items-center"
             >
               <div className="relative w-full">
                 <input
@@ -439,8 +441,8 @@ export default function Header() {
               </div>
             </form>
 
-            {/* Currency – shown in menu only on ≤424px */}
-            <div className="min-[425px]:hidden flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg w-fit cursor-pointer hover:bg-gray-50">
+            {/* Currency – in menu on mobile/tablet (< lg) */}
+            <div className="lg:hidden flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg w-fit cursor-pointer hover:bg-gray-50">
               <Image
                 src="https://flagcdn.com/w20/bh.png"
                 alt="Bahrain Flag"

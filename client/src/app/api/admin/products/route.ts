@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-middleware';
 import { getSupabase } from '@/lib/db';
 import { supabaseHelpers } from '@/lib/supabase-helpers';
-import { uploadBase64Image, uploadMultipleBase64Images } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,9 +84,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload images to Supabase Storage and replace base64 with URLs
-    const mainImageUrl = await uploadBase64Image(productData.image, 'products');
-    const additionalImageUrls = await uploadMultipleBase64Images(productData.images || [], 'products');
+    // Images are attached after product creation via /api/admin/products/[id]/media.
+    // Base64 uploads are no longer supported; reject them explicitly.
+    if (productData.image && typeof productData.image === 'string' && productData.image.startsWith('data:image')) {
+      return NextResponse.json(
+        { message: 'Base64 image uploads are not supported. Create the product first, then attach images via the media library.' },
+        { status: 400 },
+      );
+    }
 
     // Transform data to match database schema
     const insertData = {
@@ -97,8 +101,8 @@ export async function POST(request: NextRequest) {
       price: productData.price,
       category: productData.category,
       tags: productData.tags || [],
-      image: mainImageUrl,
-      images: additionalImageUrls,
+      image: (productData.image && !productData.image.startsWith('data:')) ? productData.image : '',
+      images: Array.isArray(productData.images) ? productData.images.filter((i: string) => typeof i === 'string' && !i.startsWith('data:')) : [],
       in_stock: productData.inStock !== undefined ? productData.inStock : true,
       stock_quantity: productData.stockQuantity || 0,
       rating: productData.rating || 0,
@@ -117,6 +121,7 @@ export async function POST(request: NextRequest) {
     // Transform back to camelCase for response
     const response = {
       _id: data.id,
+      id: data.id,
       name: data.name,
       slug: data.slug,
       description: data.description,

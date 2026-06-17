@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Banner } from '@/lib/types';
+import { pickBannerImageSrc } from '@/lib/media/storefront-urls';
 
 interface BannerCarouselProps {
   banners: Banner[];
@@ -109,12 +109,13 @@ export default function BannerCarousel({ banners }: BannerCarouselProps) {
             className="relative w-full h-full"
             style={{ transform: `translateY(${parallaxOffset}px)` }}
           >
-            <Image
-              src={banner.image}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={pickBannerImageSrc(banner.image)}
               alt={banner.title}
-              fill
-              className="object-cover"
-              priority={index === 0}
+              className="absolute inset-0 h-full w-full object-cover"
+              loading={index === 0 ? 'eager' : 'lazy'}
+              decoding="async"
             />
             <div className="absolute inset-0 bg-black bg-opacity-40" />
           </div>

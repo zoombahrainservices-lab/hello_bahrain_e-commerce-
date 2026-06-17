@@ -5,6 +5,20 @@ export interface User {
   role: 'user' | 'admin' | 'free' | 'premium' | 'public';
 }
 
+export interface ProductImageVariants {
+  original?: string;
+  tiny?: string;
+  thumb?: string;
+  xs?: string;
+  small?: string;
+  card?: string;
+  medium?: string;
+  large?: string;
+  xl?: string;
+  hero?: string;
+  svg_preview?: string;
+}
+
 export interface Product {
   _id: string;
   name: string;
@@ -15,6 +29,9 @@ export interface Product {
   tags: string[];
   image: string;
   images: string[];
+  /** Responsive URLs from the media library (when product is linked to media). */
+  imageVariants?: ProductImageVariants | null;
+  galleryVariants?: ProductImageVariants[];
   secondaryImage?: string;
   inStock: boolean;
   stockQuantity: number;

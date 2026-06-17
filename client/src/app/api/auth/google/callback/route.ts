@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 // GET /api/auth/google/callback - Handle Google OAuth callback
 export async function GET(request: NextRequest) {
+  const appOrigin = request.nextUrl.origin;
   try {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
@@ -15,24 +16,23 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Google OAuth error:', error);
       return NextResponse.redirect(
-        `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/auth/login?error=google_auth_failed`
+        `${appOrigin}/auth/login?error=google_auth_failed`
       );
     }
 
     if (!code) {
       return NextResponse.redirect(
-        `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/auth/login?error=no_code`
+        `${appOrigin}/auth/login?error=no_code`
       );
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL || 
-      `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/api/auth/google/callback`;
+    const redirectUri = `${appOrigin}/api/auth/google/callback`;
 
     if (!clientId || !clientSecret) {
       return NextResponse.redirect(
-        `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/auth/login?error=not_configured`
+        `${appOrigin}/auth/login?error=not_configured`
       );
     }
 
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       const errorData = await tokenResponse.text();
       console.error('Token exchange failed:', errorData);
       return NextResponse.redirect(
-        `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/auth/login?error=token_exchange_failed`
+        `${appOrigin}/auth/login?error=token_exchange_failed`
       );
     }
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     if (!userInfoResponse.ok) {
       console.error('Failed to fetch user info from Google');
       return NextResponse.redirect(
-        `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/auth/login?error=user_info_failed`
+        `${appOrigin}/auth/login?error=user_info_failed`
       );
     }
 
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     if (!email) {
       return NextResponse.redirect(
-        `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/auth/login?error=no_email`
+        `${appOrigin}/auth/login?error=no_email`
       );
     }
 
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 
     // Create redirect URL with token
     const redirectUrl = new URL(
-      `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/auth/google/success`
+      `${appOrigin}/auth/google/success`
     );
     redirectUrl.searchParams.set('token', token);
 
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error in Google OAuth callback:', error);
     return NextResponse.redirect(
-      `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/auth/login?error=callback_error`
+      `${appOrigin}/auth/login?error=callback_error`
     );
   }
 }

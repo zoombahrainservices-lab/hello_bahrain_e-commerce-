@@ -12,6 +12,8 @@ const adminNavItems = [
   { label: 'Orders', href: '/admin/orders', icon: '🛒' },
   { label: 'Users', href: '/admin/users', icon: '👥' },
   { label: 'Banners', href: '/admin/banners', icon: '🎨' },
+  { label: 'Media Library', href: '/admin/media', icon: '🖼️' },
+  { label: 'Media Tools', href: '/admin/media/tools', icon: '🔧' },
   { label: 'EazyPay', href: '/admin/eazypay', icon: '💳' },
 ];
 

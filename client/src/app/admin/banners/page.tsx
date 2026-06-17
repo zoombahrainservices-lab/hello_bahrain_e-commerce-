@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Banner } from '@/lib/types';
 import BannerPreview from '@/components/BannerPreview';
-import SingleImageUpload from '@/components/SingleImageUpload';
+import MediaPickerModal from '@/components/admin/media/MediaPickerModal';
+import { MediaItemWithVariants } from '@/lib/media/types';
 
 interface Category {
   id: string;
@@ -19,12 +20,16 @@ export default function AdminBannersPage() {
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
 
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItemWithVariants | null>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     subtitle: '',
     ctaLabel: '',
     ctaLink: '',
     image: '',
+    mediaId: '' as string,
     active: true,
     displayOrder: 0,
     titleColor: '#FFFFFF',
@@ -74,29 +79,32 @@ export default function AdminBannersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const effectiveMediaId = selectedMedia?.id || formData.mediaId;
+    if (!effectiveMediaId) {
+      alert('Please select a banner image from the media library.');
+      return;
+    }
+
+    const payload = { ...formData, mediaId: effectiveMediaId };
+
     try {
       if (editingBanner) {
-        console.log('=== BANNER UPDATE REQUEST ===');
-        console.log('Banner ID:', editingBanner._id);
-        console.log('Form Data:', JSON.stringify(formData, null, 2));
-        console.log('Form Data Keys:', Object.keys(formData));
-        console.log('============================');
-        
-        const response = await api.put(`/api/admin/banners/${editingBanner._id}`, formData);
+        const response = await api.put(`/api/admin/banners/${editingBanner._id}`, payload);
         console.log('Banner updated successfully:', response.data);
       } else {
-        console.log('Creating new banner:', formData);
-        const response = await api.post('/api/admin/banners', formData);
+        const response = await api.post('/api/admin/banners', payload);
         console.log('Banner created successfully:', response.data);
       }
 
       // Reset form
+      setSelectedMedia(null);
       setFormData({
         title: '',
         subtitle: '',
         ctaLabel: '',
         ctaLink: '',
         image: '',
+        mediaId: '',
         active: true,
         displayOrder: 0,
         titleColor: '#FFFFFF',
@@ -152,12 +160,14 @@ export default function AdminBannersPage() {
   const handleEdit = (banner: Banner) => {
     console.log('Editing banner:', banner);
     setEditingBanner(banner);
+    setSelectedMedia(null);
     setFormData({
       title: banner.title || '',
       subtitle: banner.subtitle || '',
       ctaLabel: banner.ctaLabel || '',
       ctaLink: banner.ctaLink || '',
       image: banner.image || '',
+      mediaId: (banner as any).mediaId || '',
       active: banner.active !== undefined ? banner.active : true,
       displayOrder: banner.displayOrder || 0,
       titleColor: banner.titleColor || '#FFFFFF',
@@ -201,13 +211,12 @@ export default function AdminBannersPage() {
 
   const handleToggleActive = async (banner: Banner) => {
     try {
-      // When toggling active, preserve all alignment data
       await api.put(`/api/admin/banners/${banner._id}`, {
         title: banner.title,
         subtitle: banner.subtitle,
         ctaLabel: banner.ctaLabel,
         ctaLink: banner.ctaLink,
-        image: banner.image,
+        mediaId: (banner as any).mediaId || undefined,
         active: !banner.active,
         displayOrder: banner.displayOrder || 0,
         titleColor: banner.titleColor || '#FFFFFF',
@@ -268,12 +277,14 @@ export default function AdminBannersPage() {
           onClick={() => {
             setShowForm(!showForm);
             setEditingBanner(null);
+            setSelectedMedia(null);
             setFormData({
               title: '',
               subtitle: '',
               ctaLabel: '',
               ctaLink: '',
               image: '',
+              mediaId: '',
               active: true,
               displayOrder: 0,
               titleColor: '#FFFFFF',
@@ -581,16 +592,36 @@ export default function AdminBannersPage() {
                   </div>
                 </div>
 
-                {/* Image Upload */}
+                {/* Image — Media Library Picker */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Banner Image *
                   </label>
-                  <SingleImageUpload
-                    image={formData.image}
-                    onChange={(image) => setFormData({ ...formData, image })}
-                    required
-                  />
+                  <div className="space-y-2">
+                    {(selectedMedia || formData.image) && (
+                      <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                        <img
+                          src={
+                            selectedMedia
+                              ? (selectedMedia.variants.find((v) => v.variant === 'medium')?.publicUrl ?? selectedMedia.publicUrl ?? '')
+                              : formData.image
+                          }
+                          alt="Banner preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setMediaPickerOpen(true)}
+                      className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-primary-500 hover:text-primary-600 transition text-sm"
+                    >
+                      {selectedMedia || formData.image ? 'Change Image' : 'Select from Media Library'}
+                    </button>
+                    {selectedMedia && (
+                      <p className="text-xs text-gray-500 truncate">{selectedMedia.originalFileName}</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Display Order & Active */}
@@ -655,6 +686,18 @@ export default function AdminBannersPage() {
           </div>
         </div>
       )}
+
+      {/* Media Picker Modal */}
+      <MediaPickerModal
+        open={mediaPickerOpen}
+        onClose={() => setMediaPickerOpen(false)}
+        title="Select Banner Image"
+        onSelect={(item: MediaItemWithVariants) => {
+          setSelectedMedia(item);
+          setFormData((prev) => ({ ...prev, mediaId: item.id }));
+          setMediaPickerOpen(false);
+        }}
+      />
 
       {/* Banners List */}
       <div className="space-y-4">

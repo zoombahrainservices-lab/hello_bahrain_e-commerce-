@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/db';
 import { supabaseHelpers } from '@/lib/supabase-helpers';
 import { generateToken } from '@/lib/jwt';
@@ -6,11 +6,12 @@ import { generateToken } from '@/lib/jwt';
 export const dynamic = 'force-dynamic';
 
 // GET /api/auth/google - Initiate Google OAuth
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL || 
-      `${process.env.CLIENT_URL || 'https://helloonebahrain.com'}/api/auth/google/callback`;
+    // Always build callback URL from current request origin so local stays local and
+    // production stays production.
+    const redirectUri = `${request.nextUrl.origin}/api/auth/google/callback`;
 
     if (!clientId) {
       return NextResponse.json(

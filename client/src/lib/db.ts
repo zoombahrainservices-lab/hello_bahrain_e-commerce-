@@ -23,6 +23,11 @@ export const getSupabase = (): SupabaseClient => {
         autoRefreshToken: false,
         persistSession: false,
       },
+      global: {
+        // Bypass Next.js 14 Data Cache so DB queries are always fresh
+        fetch: (url: RequestInfo | URL, options?: RequestInit) =>
+          fetch(url, { ...options, cache: 'no-store' }),
+      },
     });
   }
 

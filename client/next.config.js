@@ -1,14 +1,27 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['images.unsplash.com', 'via.placeholder.com'],
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+      },
+      // Cloudflare R2 public media domain
+      {
+        protocol: 'https',
+        hostname: 'media.helloonebahrain.com',
+        pathname: '/**',
+      },
+      // Wildcard fallback covers Supabase storage URLs and any other domains
       {
         protocol: 'https',
         hostname: '**',
       },
     ],
-    // Allow data URLs (base64 images)
     unoptimized: false,
   },
 };

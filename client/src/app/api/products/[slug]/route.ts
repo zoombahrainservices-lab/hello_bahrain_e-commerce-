@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseHelpers } from '@/lib/supabase-helpers';
+import { transformProductForStorefront } from '@/lib/products/storefront-transform';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,25 +21,7 @@ export async function GET(
       );
     }
 
-    // Transform to camelCase for frontend
-    const transformedProduct = {
-      _id: product.id,
-      name: product.name,
-      slug: product.slug,
-      description: product.description,
-      price: product.price,
-      category: product.category,
-      tags: product.tags,
-      image: product.image,
-      images: product.images,
-      inStock: product.in_stock,
-      stockQuantity: product.stock_quantity,
-      rating: product.rating,
-      isFeatured: product.is_featured,
-      isNew: product.is_new,
-      createdAt: product.created_at,
-      updatedAt: product.updated_at,
-    };
+    const transformedProduct = await transformProductForStorefront(product);
 
     return NextResponse.json(transformedProduct);
   } catch (error) {

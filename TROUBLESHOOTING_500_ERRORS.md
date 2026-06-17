@@ -76,31 +76,7 @@ If any are missing, the SQL scripts didn't run successfully. Check the SQL Edito
 
 ---
 
-## ✅ Step 4: Create Storage Bucket
-
-1. Go to Supabase → **Storage** (left sidebar)
-2. Click **"Create bucket"**
-3. Name: `product-images` (exactly this)
-4. Make it **Public** ✅
-5. Click **"Create bucket"**
-
-### Set Storage Policy
-
-1. Click on `product-images` bucket
-2. Go to **"Policies"** tab
-3. Click **"New Policy"**
-4. Select **"For full customization"**
-5. Name: `Allow service role uploads`
-6. Policy definition:
-   ```sql
-   (bucket_id = 'product-images'::text)
-   ```
-7. Check **"INSERT"**, **"UPDATE"**, **"DELETE"**, **"SELECT"**
-8. Click **"Review"** → **"Save policy"**
-
----
-
-## ✅ Step 5: Verify Environment Variables
+## ✅ Step 4: Verify Environment Variables
 
 Double-check your Vercel environment variables:
 
@@ -120,7 +96,7 @@ Double-check your Vercel environment variables:
 
 ---
 
-## ✅ Step 6: Test After Redeploy
+## ✅ Step 5: Test After Redeploy
 
 After completing all steps:
 
@@ -162,8 +138,6 @@ After completing all steps:
 - [ ] Ran `schema.sql` in Supabase SQL Editor
 - [ ] Ran `schema-updates.sql` in Supabase SQL Editor
 - [ ] Verified all tables exist in Supabase Table Editor
-- [ ] Created `product-images` storage bucket (public)
-- [ ] Set storage policy for `product-images` bucket
 - [ ] Checked Vercel function logs for actual error
 - [ ] Tested website after redeploy
 

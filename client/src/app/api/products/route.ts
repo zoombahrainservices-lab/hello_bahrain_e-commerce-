@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseHelpers } from '@/lib/supabase-helpers';
 import { cors } from '@/lib/cors';
+import { transformProductsForStorefront } from '@/lib/products/storefront-transform';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,25 +32,7 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(result.count / limit);
 
-    // Transform products to camelCase for frontend
-    const transformedItems = (result.data || []).map((product: any) => ({
-      _id: product.id,
-      name: product.name,
-      slug: product.slug,
-      description: product.description,
-      price: product.price,
-      category: product.category,
-      tags: product.tags,
-      image: product.image,
-      images: product.images,
-      inStock: product.in_stock,
-      stockQuantity: product.stock_quantity,
-      rating: product.rating,
-      isFeatured: product.is_featured,
-      isNew: product.is_new,
-      createdAt: product.created_at,
-      updatedAt: product.updated_at,
-    }));
+    const transformedItems = await transformProductsForStorefront(result.data || []);
 
     const response = NextResponse.json({
       items: transformedItems,

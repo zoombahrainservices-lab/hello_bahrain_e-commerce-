@@ -101,11 +101,6 @@ Once the URL is correct, you may still need to:
    - Run `schema.sql`
    - Run `schema-updates.sql`
 
-2. **Create storage bucket**:
-   - Go to Supabase → Storage
-   - Create `product-images` bucket (public)
-   - Set storage policy
-
 But first, **fix the URL** - that's the immediate problem!
 
 

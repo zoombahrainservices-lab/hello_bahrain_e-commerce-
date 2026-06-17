@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { CartItem, Product } from '@/lib/types';
 import { api } from '@/lib/api';
+import { pickCartSrc } from '@/lib/media/storefront-urls';
 import { useAuth } from './AuthContext';
 
 interface CartContextType {
@@ -202,7 +203,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             name: product.name,
             price: product.price,
             quantity: newQty,
-            image: product.image,
+            image: pickCartSrc(product.imageVariants, product.image),
             slug: product.slug,
             stockQuantity: maxStock,
           },
@@ -224,7 +225,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           name: product.name,
           price: product.price,
           quantity,
-          image: product.image,
+          image: pickCartSrc(product.imageVariants, product.image),
           slug: product.slug,
           stockQuantity: maxStock,
         },

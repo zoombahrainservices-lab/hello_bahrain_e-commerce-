@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-middleware';
 import { getSupabase } from '@/lib/db';
-import { uploadBase64Image, uploadMultipleBase64Images } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,11 +92,26 @@ export async function PUT(
     if (productData.price !== undefined) updateData.price = productData.price;
     if (productData.category !== undefined) updateData.category = productData.category;
     if (productData.tags !== undefined) updateData.tags = productData.tags;
-    if (productData.image !== undefined) {
-      updateData.image = await uploadBase64Image(productData.image, 'products');
+    // image / images are managed via the media library (product_media endpoints).
+    // If raw URL strings are passed (e.g. during sync), accept them; reject base64 data URIs.
+    if (productData.image !== undefined && typeof productData.image === 'string') {
+      if (productData.image.startsWith('data:image')) {
+        return NextResponse.json(
+          { message: 'Base64 image uploads are not supported. Use the media library (/api/admin/products/:id/media) to attach images.' },
+          { status: 400 },
+        );
+      }
+      updateData.image = productData.image;
     }
-    if (productData.images !== undefined) {
-      updateData.images = await uploadMultipleBase64Images(productData.images, 'products');
+    if (productData.images !== undefined && Array.isArray(productData.images)) {
+      const hasBase64 = productData.images.some((i: string) => typeof i === 'string' && i.startsWith('data:image'));
+      if (hasBase64) {
+        return NextResponse.json(
+          { message: 'Base64 image uploads are not supported. Use the media library (/api/admin/products/:id/media) to attach images.' },
+          { status: 400 },
+        );
+      }
+      updateData.images = productData.images;
     }
     if (productData.inStock !== undefined) updateData.in_stock = productData.inStock;
     if (productData.stockQuantity !== undefined) updateData.stock_quantity = productData.stockQuantity;
@@ -164,6 +178,12 @@ export async function DELETE(
     }
 
     const { id } = params;
+
+    // Detach all product_media rows before deleting the product
+    await getSupabase()
+      .from('product_media')
+      .delete()
+      .eq('product_id', id);
 
     const { error } = await getSupabase()
       .from('products')

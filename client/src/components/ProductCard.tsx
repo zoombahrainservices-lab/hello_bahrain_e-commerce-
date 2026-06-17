@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Product } from '@/lib/types';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import ResponsiveProductImage from '@/components/ResponsiveProductImage';
 
 // Local price formatter so we don't depend on '@/lib/currency' here
 function formatPriceLocal(amount: number): string {
@@ -116,8 +116,10 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
   
   const secondaryImage = findSecondaryImage();
+  const secondaryVariants =
+    product.galleryVariants?.find((_, i) => product.images[i] === secondaryImage) ??
+    product.galleryVariants?.[0];
   const hasMultipleImages = !!secondaryImage;
-  const displayImage = isHovered && secondaryImage ? secondaryImage : product.image;
 
   // Extract brand name from product name or use category
   const brandName = product.name.split(' ')[0] || product.category;
@@ -131,8 +133,10 @@ export default function ProductCard({ product }: ProductCardProps) {
       <Link href={`/product/${product.slug}`} className="flex-1 flex flex-col">
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           {/* Primary Image */}
-          <Image
+          <ResponsiveProductImage
             src={product.image}
+            variants={product.imageVariants}
+            usage="card"
             alt={product.name}
             fill
             className={`object-cover transition-opacity duration-300 ${
@@ -143,8 +147,10 @@ export default function ProductCard({ product }: ProductCardProps) {
           
           {/* Secondary Image (on hover) */}
           {secondaryImage && (
-            <Image
+            <ResponsiveProductImage
               src={secondaryImage}
+              variants={secondaryVariants}
+              usage="card"
               alt={product.name}
               fill
               className={`object-cover transition-opacity duration-300 ${
