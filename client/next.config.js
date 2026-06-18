@@ -1,11 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    // Required on Vercel (Next.js 14) — sharp has native binaries and must not be
-    // bundled into the serverless function. Without this, /api/admin/media/* crashes
-    // at cold start and returns HTML 500 instead of JSON.
+    // Prevents the RSC bundler from bundling sharp (covers Server Components).
     serverComponentsExternalPackages: ['sharp'],
   },
+
+  // Prevents the regular webpack server bundler from bundling sharp (covers Route Handlers).
+  // This is belt-and-suspenders alongside the webpackIgnore comment in image-processing.ts.
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      if (Array.isArray(config.externals)) {
+        config.externals.push({ sharp: 'commonjs sharp' });
+      }
+    }
+    return config;
+  },
+
   images: {
     remotePatterns: [
       {
@@ -33,4 +43,3 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
-

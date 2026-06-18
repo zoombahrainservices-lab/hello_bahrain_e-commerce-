@@ -1,4 +1,9 @@
-import sharp from 'sharp';
+// Sharp is intentionally NOT statically imported here.
+// A static `import sharp from 'sharp'` causes webpack to bundle the native .node binary
+// which then crashes when the serverless function cold-starts on Vercel (wrong platform
+// binary, corrupted bundle). Instead we load it lazily at call-time with webpackIgnore,
+// so webpack leaves the import as a real Node.js require that resolves at runtime.
+import type sharpDefault from 'sharp';
 import {
   MEDIA_VARIANTS,
   WEBP_QUALITY,
@@ -9,6 +14,20 @@ import {
   VariantName,
 } from './constants';
 import { getExtensionFromMime, getFormatFromMime } from './validation';
+
+type SharpFactory = typeof sharpDefault;
+let _sharp: SharpFactory | null = null;
+
+async function loadSharp(): Promise<SharpFactory> {
+  if (!_sharp) {
+    // webpackIgnore: true tells webpack to skip bundling this module entirely.
+    // Node.js resolves it from node_modules at runtime, where the correct
+    // platform binary is available.
+    const mod = await import(/* webpackIgnore: true */ 'sharp');
+    _sharp = (mod.default ?? mod) as SharpFactory;
+  }
+  return _sharp;
+}
 
 export interface ImageMetadata {
   width: number;
@@ -42,6 +61,7 @@ export interface ProcessedVariant {
  * Extract metadata from a raw image buffer.
  */
 export async function getImageMetadata(buffer: Buffer): Promise<ImageMetadata> {
+  const sharp = await loadSharp();
   const meta = await sharp(buffer).metadata();
   return {
     width: meta.width ?? 0,
@@ -55,6 +75,7 @@ export async function getImageMetadata(buffer: Buffer): Promise<ImageMetadata> {
  * Generate WebP variants for a raster image.
  */
 export async function generateRasterVariants(buffer: Buffer): Promise<ProcessedVariant[]> {
+  const sharp = await loadSharp();
   const meta = await sharp(buffer).metadata();
   const originalWidth = meta.width ?? 0;
 
@@ -111,6 +132,7 @@ export async function processOriginalRaster(
   buffer: Buffer,
   mimeType: string,
 ): Promise<ProcessedOriginal> {
+  const sharp = await loadSharp();
   const meta = await sharp(buffer).metadata();
   const needsResize =
     (meta.width ?? 0) > ORIGINAL_MAX_DIMENSION || (meta.height ?? 0) > ORIGINAL_MAX_DIMENSION;
@@ -133,16 +155,12 @@ export async function processOriginalRaster(
 
   let output: Buffer;
   if (pngWithoutAlpha) {
-    output = await pipeline
-      .jpeg({ quality: ORIGINAL_JPEG_QUALITY, mozjpeg: true })
-      .toBuffer();
+    output = await pipeline.jpeg({ quality: ORIGINAL_JPEG_QUALITY, mozjpeg: true }).toBuffer();
     outputMimeType = 'image/jpeg';
     outputExtension = 'jpg';
     outputFormat = 'jpeg';
   } else if (mimeType === 'image/jpeg') {
-    output = await pipeline
-      .jpeg({ quality: ORIGINAL_JPEG_QUALITY, mozjpeg: true })
-      .toBuffer();
+    output = await pipeline.jpeg({ quality: ORIGINAL_JPEG_QUALITY, mozjpeg: true }).toBuffer();
   } else if (mimeType === 'image/png') {
     output = await pipeline
       .png({ compressionLevel: ORIGINAL_PNG_COMPRESSION, effort: 10 })
