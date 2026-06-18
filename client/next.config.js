@@ -5,12 +5,24 @@ const nextConfig = {
     serverComponentsExternalPackages: ['sharp'],
   },
 
+  // Forces Vercel's Node File Tracer to include sharp's native binary (.node)
+  // in the serverless function output. Without this, the tracer misses the
+  // binary because it can't follow webpackIgnore dynamic imports statically.
+  outputFileTracingIncludes: {
+    '/api/admin/media/upload': ['./node_modules/sharp/**/*'],
+  },
+
   // Prevents the regular webpack server bundler from bundling sharp (covers Route Handlers).
-  // This is belt-and-suspenders alongside the webpackIgnore comment in image-processing.ts.
+  // config.externals in Next.js 14 server builds is an array; we push a resolver
+  // function (not a plain object) so webpack's resolver pipeline handles it correctly.
   webpack: (config, { isServer }) => {
     if (isServer) {
+      config.externals = config.externals || [];
       if (Array.isArray(config.externals)) {
-        config.externals.push({ sharp: 'commonjs sharp' });
+        config.externals.push(({ request }, callback) => {
+          if (request === 'sharp') return callback(null, 'commonjs sharp');
+          callback();
+        });
       }
     }
     return config;
