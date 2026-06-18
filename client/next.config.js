@@ -1,20 +1,32 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    // Prevents the RSC bundler from bundling sharp (covers Server Components).
     serverComponentsExternalPackages: ['sharp'],
   },
 
-  // Forces Vercel's Node File Tracer to include sharp's native binary (.node)
-  // in the serverless function output. Without this, the tracer misses the
-  // binary because it can't follow webpackIgnore dynamic imports statically.
+  // npm workspaces hoists ALL client packages (including sharp) to the repo
+  // root node_modules/, so client/node_modules/ does not exist. Without this,
+  // Next.js file tracing is bounded to client/ and never sees the repo root,
+  // making outputFileTracingIncludes paths that point to client/node_modules/
+  // resolve to nothing.
+  outputFileTracingRoot: path.join(__dirname, '../'),
+
+  // sharp is loaded via webpackIgnore so NFT can't auto-trace it. We explicitly
+  // force-include both the sharp package and the Linux platform binaries that
+  // contain the actual native .node binary Vercel needs at runtime.
+  // Paths are relative to outputFileTracingRoot (the repo root).
   outputFileTracingIncludes: {
-    '/api/admin/media/upload': ['./node_modules/sharp/**/*'],
+    '/api/admin/media/**': [
+      'node_modules/sharp/**/*',
+      'node_modules/@img/sharp-linux-x64/**/*',
+      'node_modules/@img/sharp-linux-arm64/**/*',
+      'node_modules/@img/sharp-libvips-linux-x64/**/*',
+      'node_modules/@img/sharp-libvips-linux-arm64/**/*',
+    ],
   },
 
-  // Prevents the regular webpack server bundler from bundling sharp (covers Route Handlers).
-  // config.externals in Next.js 14 server builds is an array; we push a resolver
-  // function (not a plain object) so webpack's resolver pipeline handles it correctly.
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals = config.externals || [];
