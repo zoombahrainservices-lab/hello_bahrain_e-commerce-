@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Required on Vercel — media API routes use sharp for image processing.
-  // Without this, /api/admin/media/* can crash at cold start with HTML 500 errors.
-  serverExternalPackages: ['sharp'],
+  experimental: {
+    // Required on Vercel (Next.js 14) — sharp has native binaries and must not be
+    // bundled into the serverless function. Without this, /api/admin/media/* crashes
+    // at cold start and returns HTML 500 instead of JSON.
+    serverComponentsExternalPackages: ['sharp'],
+  },
   images: {
     remotePatterns: [
       {
