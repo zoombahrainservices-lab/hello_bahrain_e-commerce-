@@ -1,6 +1,18 @@
 import sanitizeHtml from 'sanitize-html';
-import sharp from 'sharp';
+import type sharpDefault from 'sharp';
 import { SVG_PREVIEW_SIZE, WEBP_QUALITY } from './constants';
+
+// Lazy-load sharp to prevent webpack from bundling the native binary.
+// See image-processing.ts for the full explanation.
+type SharpFactory = typeof sharpDefault;
+let _sharp: SharpFactory | null = null;
+async function loadSharp(): Promise<SharpFactory> {
+  if (!_sharp) {
+    const mod = await import(/* webpackIgnore: true */ 'sharp');
+    _sharp = (mod.default ?? mod) as SharpFactory;
+  }
+  return _sharp;
+}
 
 export interface SvgValidationResult {
   valid: boolean;
@@ -140,6 +152,7 @@ export function validateAndSanitizeSvg(buffer: Buffer): SvgValidationResult {
  * Rasterize an SVG buffer to a WebP preview thumbnail using Sharp.
  */
 export async function generateSvgPreview(svgBuffer: Buffer): Promise<SvgPreviewResult> {
+  const sharp = await loadSharp();
   const previewBuffer = await sharp(svgBuffer)
     .resize(SVG_PREVIEW_SIZE, SVG_PREVIEW_SIZE, {
       fit: 'inside',
